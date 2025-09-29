@@ -26,3 +26,6 @@ requests==2.31.0
 
 # Optional: For better performance
 gunicorn==21.2.0
+
+
+httpx==0.26.0

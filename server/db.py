@@ -1,9 +1,11 @@
+
+# backend\server\db.py
 """
 Database configuration and session management
 """
 
 import os
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
@@ -21,9 +23,11 @@ if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
 # ✅ Fallback to local PostgreSQL or SQLite for development
 if not DATABASE_URL:
     # Try local PostgreSQL first (from your original config)
-    local_db = os.getenv("LOCAL_DATABASE_URL", "postgresql+psycopg2://postgres:036063@localhost:5432/wedding_db")
+    local_db = os.getenv(
+        "LOCAL_DATABASE_URL", "postgresql+psycopg2://postgres:036063@localhost:5432/wedding_db")
     DATABASE_URL = local_db
-    print(f"⚠️ No DATABASE_URL found, using local database: {DATABASE_URL[:30]}...")
+    print(
+        f"⚠️ No DATABASE_URL found, using local database: {DATABASE_URL[:30]}...")
 
 # ✅ Engine configuration
 engine_kwargs = {
@@ -52,6 +56,8 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 # ✅ Dependency for getting database session
+
+
 def get_db():
     """
     Dependency function to get database session.
@@ -64,17 +70,20 @@ def get_db():
         db.close()
 
 # ✅ Optional: Test database connection
+
+
 def test_connection():
     """Test database connection"""
     try:
         db = SessionLocal()
-        db.execute("SELECT 1")
+        db.execute(text("SELECT 1"))
         db.close()
         print("✅ Database connection successful!")
         return True
     except Exception as e:
         print(f"❌ Database connection failed: {e}")
         return False
+
 
 # Test connection on import (only in development)
 if os.getenv("ENVIRONMENT") != "production":
