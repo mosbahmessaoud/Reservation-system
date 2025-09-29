@@ -16,6 +16,7 @@ pydantic-settings==2.1.0
 
 # Environment & Config
 python-dotenv==1.0.0
+platformdirs==4.1.0
 
 # Twilio for SMS
 twilio==8.12.0
