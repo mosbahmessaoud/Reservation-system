@@ -1,4 +1,4 @@
-##backend\server\main.py
+# backend\server\main.py
 
 """
 FastAPI app entry point. Includes all routers, creates tables, and seeds initial data.

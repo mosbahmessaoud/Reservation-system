@@ -20,7 +20,8 @@ load_dotenv()
 # ✅ Get SECRET_KEY from environment (CRITICAL for production!)
 SECRET_KEY = os.getenv("SECRET_KEY", "supersecretkey2")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60 * 24))  # 24 hours default
+ACCESS_TOKEN_EXPIRE_MINUTES = int(
+    os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60 * 24))  # 24 hours default
 
 # ✅ Warn if using default secret key
 if SECRET_KEY == "supersecretkey2":
@@ -52,21 +53,21 @@ def get_password_hash(password: str) -> str:
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """
     Create JWT access token
-    
+
     Args:
         data: Dictionary containing user data (must include 'sub' for user_id)
         expires_delta: Optional custom expiration time
-        
+
     Returns:
         Encoded JWT token as string
     """
     to_encode = data.copy()
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
-    
+
     # ✅ Add issued at timestamp
     to_encode.update({"iat": datetime.utcnow()})
-    
+
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
@@ -78,58 +79,58 @@ def get_user_by_phone(db: Session, phone_number: str) -> Optional[User]:
 def authenticate_user(db: Session, phone_number: str, password: str) -> Optional[User]:
     """
     Authenticate user with phone number and password
-    
+
     Args:
         db: Database session
         phone_number: User's phone number
         password: Plain text password
-        
+
     Returns:
         User object if authentication succeeds, None otherwise
     """
     user = get_user_by_phone(db, phone_number)
-    
+
     if not user or not verify_password(password, user.password_hash):
         return None
     return user
 
 
 def get_current_user(
-    db: Session = Depends(get_db), 
+    db: Session = Depends(get_db),
     token: str = Depends(oauth2_scheme)
 ) -> User:
     """
     Get current user from JWT token
-    
+
     Args:
         db: Database session
         token: JWT token from Authorization header
-        
+
     Returns:
         User object
-        
+
     Raises:
         HTTPException: If token is invalid or user not found
     """
     # ✅ Only log in development
     is_production = os.getenv("ENVIRONMENT") == "production"
-    
+
     if not is_production:
         print(f"🔐 Received token: {token[:20]}...")
-    
+
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    
+
     try:
         # Decode JWT token
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        
+
         if not is_production:
             print(f"✅ Decoded payload: {payload}")
-        
+
         # Extract user_id from 'sub' claim
         user_id: str = payload.get("sub")
         if user_id is None:
@@ -138,7 +139,7 @@ def get_current_user(
                 detail="Token missing user ID (sub)",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        
+
         # Extract role from token
         role = payload.get("role")
         if role is None:
@@ -147,7 +148,7 @@ def get_current_user(
                 detail="Token missing user role",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        
+
         # Convert user_id to integer
         try:
             user_id = int(user_id)
@@ -157,35 +158,35 @@ def get_current_user(
                 detail="User ID in token is invalid",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        
+
     except JWTError as e:
         if not is_production:
             print(f"❌ JWT Error: {e}")
         raise credentials_exception
-    
+
     # Query user from database
     user = db.query(User).filter(User.id == user_id).first()
-    
+
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     return user
 
 
 def require_role(*required_roles):
     """
     Dependency factory for role-based access control
-    
+
     Args:
         *required_roles: Variable number of allowed UserRole values
-        
+
     Returns:
         Dependency function that checks user role
-        
+
     Example:
         @app.get("/admin")
         async def admin_route(user = Depends(require_role(UserRole.admin, UserRole.super_admin))):
@@ -198,29 +199,29 @@ def require_role(*required_roles):
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Insufficient permissions. Required roles: {[r.value for r in required_roles]}"
             )
-        
+
         # Check if phone is verified
         if not current_user.phone_verified:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Phone number not verified. Please verify your phone to access this resource."
             )
-        
+
         return current_user
-    
+
     return _require_role
 
 
 def phone_verified_required(current_user: User = Depends(get_current_user)) -> User:
     """
     Dependency to check if user's phone is verified
-    
+
     Args:
         current_user: Current authenticated user
-        
+
     Returns:
         User object if phone is verified
-        
+
     Raises:
         HTTPException: If phone is not verified
     """
@@ -235,13 +236,13 @@ def phone_verified_required(current_user: User = Depends(get_current_user)) -> U
 def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
     """
     Dependency to get current active user (not banned/disabled)
-    
+
     Args:
         current_user: Current authenticated user
-        
+
     Returns:
         User object if active
-        
+
     Raises:
         HTTPException: If user is inactive
     """
@@ -258,10 +259,10 @@ def get_current_active_user(current_user: User = Depends(get_current_user)) -> U
 def create_refresh_token(data: dict) -> str:
     """
     Create refresh token with longer expiration
-    
+
     Args:
         data: Dictionary containing user data
-        
+
     Returns:
         Encoded JWT refresh token
     """
@@ -279,20 +280,20 @@ def create_refresh_token(data: dict) -> str:
 def verify_refresh_token(token: str) -> Optional[dict]:
     """
     Verify and decode refresh token
-    
+
     Args:
         token: JWT refresh token
-        
+
     Returns:
         Decoded payload if valid, None otherwise
     """
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        
+
         # Verify it's a refresh token
         if payload.get("type") != "refresh":
             return None
-            
+
         return payload
     except JWTError:
         return None

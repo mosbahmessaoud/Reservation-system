@@ -1,3 +1,6 @@
+platformdirs==4.1.0
+httpx==0.26.0
+
 # FastAPI Framework
 fastapi==0.109.0
 uvicorn[standard]==0.27.0
@@ -16,7 +19,6 @@ pydantic-settings==2.1.0
 
 # Environment & Config
 python-dotenv==1.0.0
-platformdirs==4.1.0
 
 # Twilio for SMS
 twilio==8.12.0
@@ -27,5 +29,3 @@ requests==2.31.0
 # Optional: For better performance
 gunicorn==21.2.0
 
-
-httpx==0.26.0

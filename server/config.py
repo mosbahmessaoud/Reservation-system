@@ -12,7 +12,7 @@ load_dotenv()
 
 class Settings(BaseSettings):
     """Application settings from environment variables"""
-    
+
     # ============================================
     # Application Settings
     # ============================================
@@ -20,28 +20,31 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0.0"
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     DEBUG: bool = ENVIRONMENT == "development"
-    
+
     # ============================================
     # Database Settings
     # ============================================
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql+psycopg2://postgres:036063@localhost:5432/wedding_db")
-    
+    DATABASE_URL: str = os.getenv(
+        "DATABASE_URL", "postgresql+psycopg2://postgres:032023@localhost:5432/wedding_db")
+
     # ============================================
     # Security Settings
     # ============================================
     SECRET_KEY: str = os.getenv("SECRET_KEY", "supersecretkey2")
     ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60 * 24))
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(
+        os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60 * 24))
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
-    
+
     # Super Admin Default Password
-    SUPER_ADMIN_PASSWORD: str = os.getenv("SUPER_ADMIN_PASSWORD", "M.superadmin")
-    
+    SUPER_ADMIN_PASSWORD: str = os.getenv(
+        "SUPER_ADMIN_PASSWORD", "M.superadmin")
+
     # ============================================
     # CORS Settings
     # ============================================
     CORS_ORIGINS: List[str] = os.getenv("CORS_ORIGINS", "*").split(",")
-    
+
     # ============================================
     # Twilio SMS Settings
     # ============================================
@@ -49,59 +52,59 @@ class Settings(BaseSettings):
     TWILIO_AUTH_TOKEN: str = os.getenv("TWILIO_AUTH_TOKEN", "")
     TWILIO_PHONE_NUMBER: str = os.getenv("TWILIO_PHONE_NUMBER", "")
     TWILIO_ENABLED: bool = bool(TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN)
-    
+
     # ============================================
     # Server Settings
     # ============================================
     HOST: str = os.getenv("HOST", "0.0.0.0")
     PORT: int = int(os.getenv("PORT", 8000))
     WORKERS: int = int(os.getenv("WEB_CONCURRENCY", 2))
-    
+
     # ============================================
     # Rate Limiting
     # ============================================
     RATE_LIMIT_ENABLED: bool = ENVIRONMENT == "production"
     RATE_LIMIT_PER_MINUTE: int = 60
-    
+
     # ============================================
     # File Upload Settings
     # ============================================
     MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024  # 10MB
     ALLOWED_UPLOAD_EXTENSIONS: List[str] = [".jpg", ".jpeg", ".png", ".pdf"]
-    
 
-    
     class Config:
         case_sensitive = True
         env_file = ".env"
-    
+
     @property
     def is_production(self) -> bool:
         """Check if running in production"""
         return self.ENVIRONMENT == "production"
-    
+
     @property
     def is_development(self) -> bool:
         """Check if running in development"""
         return self.ENVIRONMENT == "development"
-    
+
     def validate_settings(self) -> List[str]:
         """Validate critical settings and return warnings"""
         warnings = []
-        
+
         if self.is_production:
             if self.SECRET_KEY == "supersecretkey2":
-                warnings.append("⚠️ CRITICAL: Using default SECRET_KEY in production!")
-            
+                warnings.append(
+                    "⚠️ CRITICAL: Using default SECRET_KEY in production!")
+
             if self.SUPER_ADMIN_PASSWORD == "M.superadmin":
-                warnings.append("⚠️ WARNING: Using default super admin password!")
-            
+                warnings.append(
+                    "⚠️ WARNING: Using default super admin password!")
+
             if not self.TWILIO_ENABLED:
                 warnings.append("⚠️ WARNING: Twilio SMS is not configured!")
-            
+
             if self.DATABASE_URL.startswith("sqlite"):
                 warnings.append("⚠️ WARNING: Using SQLite in production!")
-        
+
         return warnings
 
 
