@@ -2,7 +2,7 @@
 FastAPI app entry point
 """
 import os
-from datetime import datetime
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -37,52 +37,6 @@ load_dotenv()
 
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 IS_PRODUCTION = ENVIRONMENT == "production"
-
-app = FastAPI(
-    title="Wedding Reservation API",
-    version="1.0.0",
-    docs_url="/docs" if not IS_PRODUCTION else None,
-    redoc_url="/redoc" if not IS_PRODUCTION else None
-)
-
-# CORS
-ALLOWED_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS if IS_PRODUCTION else ["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-@app.get("/")
-async def root():
-    return {"status": "ok", "message": "Wedding Reservation API"}
-
-
-@app.get("/health")
-async def health_check():
-    """Health check endpoint"""
-    return {"status": "healthy", "message": "FastOpp Demo app is running"}
-
-
-# Register routers
-app.include_router(auth.router)
-app.include_router(super_admin.router)
-app.include_router(clan_admin.router)
-app.include_router(reservations.router)
-app.include_router(grooms.router)
-app.include_router(food_route.router)
-app.include_router(public_routes.router)
-
-
-@app.on_event("startup")
-async def startup():
-    print(f"🚀 Starting in {ENVIRONMENT} mode...")
-    Base.metadata.create_all(bind=engine)
-    seed_initial_data()
-    print("✅ Ready!")
 
 
 def seed_initial_data():
@@ -127,7 +81,58 @@ def seed_initial_data():
         db.close()
 
 
-# ADD THIS AT THE END
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    print(f"🚀 Starting in {ENVIRONMENT} mode...")
+    Base.metadata.create_all(bind=engine)
+    seed_initial_data()
+    print("✅ Ready!")
+    yield
+    # Shutdown (add cleanup code here if needed)
+    print("👋 Shutting down...")
+
+
+app = FastAPI(
+    title="Wedding Reservation API",
+    version="1.0.0",
+    docs_url="/docs" if not IS_PRODUCTION else None,
+    redoc_url="/redoc" if not IS_PRODUCTION else None,
+    lifespan=lifespan
+)
+
+# CORS
+ALLOWED_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS if IS_PRODUCTION else ["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.get("/")
+async def root():
+    return {"status": "ok", "message": "Wedding Reservation API"}
+
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {"status": "healthy", "message": "FastOpp Demo app is running"}
+
+
+# Register routers
+app.include_router(auth.router)
+app.include_router(super_admin.router)
+app.include_router(clan_admin.router)
+app.include_router(reservations.router)
+app.include_router(grooms.router)
+app.include_router(food_route.router)
+app.include_router(public_routes.router)
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
