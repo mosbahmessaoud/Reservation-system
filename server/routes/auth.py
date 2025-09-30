@@ -65,15 +65,20 @@ def login(
     request: LoginRequest,
     db: Session = Depends(get_db),
 ):
+
+    print(f"🔍 Login attempt for: {request.phone_number}")
+    print(f"🔍 Password length: {len(request.password)} chars")
     user = auth_utils.authenticate_user(
         db, request.phone_number, request.password
     )
 
     if not user:
+        print(f"❌ Authentication failed for {request.phone_number}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="رقم الهاتف أو كلمة المرور غير صحيحة"
         )
+    print(f"✅ Authentication successful for {request.phone_number}")
 
     if not user.phone_verified:
         raise HTTPException(
@@ -403,4 +408,3 @@ def update_groom_info(
     db.refresh(groom)
 
     return groom
-
