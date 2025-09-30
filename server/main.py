@@ -30,7 +30,9 @@ from .routes import (
     reservations,
     grooms,
     food_route,
-    public_routes
+    public_routes,
+    admin_utils  # Add this line
+
 )
 
 load_dotenv()
@@ -124,6 +126,7 @@ async def health_check():
 
 
 # Register routers
+app.include_router(admin_utils.router)
 app.include_router(auth.router)
 app.include_router(super_admin.router)
 app.include_router(clan_admin.router)

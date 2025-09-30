@@ -403,3 +403,4 @@ def update_groom_info(
     db.refresh(groom)
 
     return groom
+
