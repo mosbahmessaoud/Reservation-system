@@ -66,7 +66,7 @@ def seed_initial_data():
             super_admin = User(
                 phone_number="0658890501",
                 password_hash=get_password_hash(
-                    os.getenv("SUPER_ADMIN_PASSWORD", "M.superadmin")),
+                    os.getenv("SUPER_ADMIN_PASSWORD", "M.super7admin!2002")),
                 role=UserRole.super_admin,
                 first_name="Super",
                 last_name="Admin",
