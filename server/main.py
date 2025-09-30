@@ -1,5 +1,3 @@
-# backend\server\main.py
-
 """
 FastAPI app entry point. Includes all routers, creates tables, and seeds initial data.
 """
@@ -9,12 +7,9 @@ from datetime import datetime
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from sqlalchemy import text
 
-# from auth_utils import get_password_hash
-from server.auth_utils import get_password_hash
+from .auth_utils import get_password_hash
 from .routes import food_route
-
 from .routes.auth import router
 from .routes.clan_admin import router
 from .db import engine, Base, SessionLocal
@@ -40,14 +35,14 @@ from .routes import (
     public_routes
 )
 
-# ✅ Load .env file
+# Load .env file
 load_dotenv()
 
-# ✅ Environment detection
+# Environment detection
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 IS_PRODUCTION = ENVIRONMENT == "production"
 
-# ✅ Debug prints (only in development)
+# Debug prints (only in development)
 if not IS_PRODUCTION:
     print("TWILIO_ACCOUNT_SID:", os.getenv("TWILIO_ACCOUNT_SID"))
     print("TWILIO_PHONE_NUMBER:", os.getenv("TWILIO_PHONE_NUMBER"))
@@ -58,12 +53,11 @@ app = FastAPI(
     title="Wedding Reservation API",
     description="API for managing wedding reservations and clan operations",
     version="1.0.0",
-    # Disable docs in production for security
     docs_url="/docs" if not IS_PRODUCTION else None,
     redoc_url="/redoc" if not IS_PRODUCTION else None
 )
 
-# ✅ CORS Configuration - Critical for Flutter app
+# CORS Configuration
 ALLOWED_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
 
 app.add_middleware(
@@ -75,29 +69,20 @@ app.add_middleware(
     expose_headers=["*"]
 )
 
-# ✅ Health check endpoint for Railway
+# Simple health check endpoint
 
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint for monitoring"""
-    try:
-        # Test database connection
-        db = SessionLocal()
-        db.execute(text("SELECT 1"))
-        db.close()
-        db_status = "connected"
-    except Exception as e:
-        db_status = f"error: {str(e)}"
-
+    """Health check endpoint for Railway"""
     return {
         "status": "healthy",
-        "database": db_status,
+        "message": "Wedding Reservation API is running",
         "environment": ENVIRONMENT,
         "timestamp": datetime.utcnow().isoformat()
     }
 
-# ✅ Root endpoint
+# Root endpoint
 
 
 @app.get("/")
@@ -109,7 +94,7 @@ async def root():
         "docs": "/docs" if not IS_PRODUCTION else "disabled"
     }
 
-# ✅ Register routers
+# Register routers
 app.include_router(auth.router)
 app.include_router(super_admin.router)
 app.include_router(clan_admin.router)
@@ -118,29 +103,29 @@ app.include_router(grooms.router)
 app.include_router(food_route.router)
 app.include_router(public_routes.router)
 
-# ✅ Create tables on startup
+# Create tables on startup
 
 
 @app.on_event("startup")
 async def startup_event():
     """Run on application startup"""
-    print(f"🚀 Starting application in {ENVIRONMENT} mode...")
+    print(f"Starting application in {ENVIRONMENT} mode...")
 
     # Create database tables
     Base.metadata.create_all(bind=engine)
-    print("✅ Database tables created/verified")
+    print("Database tables created/verified")
 
     # Seed initial data
     seed_initial_data()
-    print("✅ Initial data seeded")
+    print("Initial data seeded")
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup on application shutdown"""
-    print("👋 Shutting down application...")
+    print("Shutting down application...")
 
-# ✅ Initial seed data for first-time use
+# Initial seed data
 
 
 def seed_initial_data():
@@ -186,9 +171,9 @@ def seed_initial_data():
             db.add(super_admin)
             db.commit()
 
-            print("✅ Initial data seeded successfully!")
+            print("Initial data seeded successfully!")
     except Exception as e:
-        print(f"❌ Error seeding data: {e}")
+        print(f"Error seeding data: {e}")
         db.rollback()
     finally:
         db.close()
