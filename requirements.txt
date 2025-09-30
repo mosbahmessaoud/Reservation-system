@@ -12,3 +12,4 @@ bcrypt==4.1.2
 platformdirs==4.1.0
 httpx==0.26.0
 twilio
+python-docx
