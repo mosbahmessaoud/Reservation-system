@@ -14,6 +14,8 @@ from dotenv import load_dotenv
 from .db import SessionLocal
 from .models.user import User
 
+from passlib.context import CryptContext
+import hashlib
 # ✅ Load environment variables
 load_dotenv()
 
@@ -27,7 +29,12 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(
 if SECRET_KEY == "supersecretkey2":
     print("⚠️ WARNING: Using default SECRET_KEY! Please set SECRET_KEY in environment variables!")
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(
+    schemes=["bcrypt"],
+    deprecated="auto",
+    bcrypt__rounds=12,  # Good security level
+)
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 
@@ -41,12 +48,40 @@ def get_db():
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a plain password against a hashed password"""
-    return pwd_context.verify(plain_password, hashed_password)
+    """
+    Verify a password against a hashed password.
+    Handles the pre-hashing for long passwords.
+    """
+    try:
+        password_bytes = plain_password.encode('utf-8')
+
+        # Apply same pre-hashing logic as hash_password
+        if len(password_bytes) > 72:
+            password_hash = hashlib.sha256(password_bytes).hexdigest()
+            return pwd_context.verify(password_hash, hashed_password)
+
+        return pwd_context.verify(plain_password, hashed_password)
+    except Exception as e:
+        # Log the error for debugging
+        print(f"Password verification error: {e}")
+        return False
 
 
 def get_password_hash(password: str) -> str:
-    """Hash a password using bcrypt"""
+    """
+    Hash a password using bcrypt with proper length handling.
+    Bcrypt has a 72-byte limit, so we pre-hash with SHA256 for long passwords.
+    """
+    # Pre-hash the password with SHA256 to ensure it's always within bcrypt's 72-byte limit
+    # This is a recommended approach for handling bcrypt's limitation
+    password_bytes = password.encode('utf-8')
+
+    # Use SHA256 to create a fixed-length hash before bcrypt
+    if len(password_bytes) > 72:
+        # For passwords longer than 72 bytes, pre-hash with SHA256
+        password_hash = hashlib.sha256(password_bytes).hexdigest()
+        return pwd_context.hash(password_hash)
+
     return pwd_context.hash(password)
 
 
