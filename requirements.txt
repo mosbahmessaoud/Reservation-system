@@ -8,7 +8,6 @@ pydantic_settings==2.11.0
 python-dotenv==1.1.1
 python_docx==1.2.0
 python_jose==3.3.0
-pywin32==306
 SQLAlchemy==2.0.25
 twilio==8.12.0
 uvicorn==0.37.0
