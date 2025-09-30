@@ -18,7 +18,7 @@ from typing import List
 #     menu_details: str
 
 #     class Config:
-#         orm_mode = True
+#         from_attributes  = True
 
 
 class FoodMenuOut(BaseModel):
@@ -28,7 +28,7 @@ class FoodMenuOut(BaseModel):
     menu_details: list[str]  # Expect a list, not a string
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class FoodTypeBase(BaseModel):
@@ -55,7 +55,7 @@ class FoodTypeResponse(FoodTypeBase):
 
     class Config:
         from_attributes = True
-        orm_mode = True
+        from_attributes = True
 
 
 class FoodTypeListResponse(BaseModel):
@@ -66,7 +66,7 @@ class FoodTypeListResponse(BaseModel):
 
     class Config:
         from_attributes = True
-        orm_mode = True
+        from_attributes = True
 
 
 class FoodTypeDropdownResponse(BaseModel):
@@ -75,7 +75,7 @@ class FoodTypeDropdownResponse(BaseModel):
 
     class Config:
         from_attributes = True
-        orm_mode = True
+        from_attributes = True
 
 
 class FoodTypeOption(BaseModel):
