@@ -3,8 +3,8 @@ Reservation routes for grooms and clan admins.
 """
 import logging
 import subprocess
-from typing import Dict, List, Tuple, Optional
-from sqlalchemy import text, func
+from typing import Dict, List, Optional
+from sqlalchemy import text
 from typing import List, Dict, Optional
 from calendar import monthrange
 from typing import List, Optional
@@ -13,11 +13,9 @@ import os
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
-from grpc import Status
-from pydantic import BaseModel
-from regex import D
+
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, exists, or_
+from sqlalchemy import and_, or_
 from datetime import date, timedelta, datetime
 
 from server.models.clan import Clan

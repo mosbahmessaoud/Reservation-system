@@ -1,9 +1,8 @@
 """
 Database configuration and session management
 """
-
 import os
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
@@ -14,18 +13,17 @@ load_dotenv()
 # Get DATABASE_URL from environment
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Railway PostgreSQL fix: Change postgres:// to postgresql://
+# Railway PostgreSQL fix
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# Fallback to local database for development
+# Fallback to local database
 if not DATABASE_URL:
-    local_db = os.getenv(
+    DATABASE_URL = os.getenv(
         "LOCAL_DATABASE_URL",
         "postgresql+psycopg2://postgres:032023@localhost:5432/wedding_db"
     )
-    DATABASE_URL = local_db
-    print(f"Using local database: {DATABASE_URL[:40]}...")
+    print(f"⚠️ Using local database: {DATABASE_URL[:40]}...")
 
 # Engine configuration
 engine_kwargs = {
@@ -33,13 +31,12 @@ engine_kwargs = {
     "pool_recycle": 3600,
 }
 
-# Database-specific configuration
 if DATABASE_URL.startswith("sqlite"):
     engine_kwargs["connect_args"] = {"check_same_thread": False}
 else:
     engine_kwargs.update({
-        "pool_size": 10,
-        "max_overflow": 20,
+        "pool_size": 5,
+        "max_overflow": 10,
         "pool_timeout": 30,
     })
 
@@ -52,16 +49,22 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # Base class for models
 Base = declarative_base()
 
-# Dependency for getting database session
-
 
 def get_db():
-    """
-    Dependency function to get database session.
-    Use in FastAPI routes with Depends(get_db)
-    """
+    """Database session dependency"""
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
+
+# def test_connection():
+#     """Test database connection"""
+#     try:
+#         with engine.connect() as conn:
+#             conn.execute(text("SELECT 1"))
+#         print("✅ Database connected successfully")
+#         return True
+#     except Exception as e:
+#         print(f"❌ Database connection failed: {e}")
+#         return False
