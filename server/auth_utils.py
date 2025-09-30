@@ -10,12 +10,11 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
+import hashlib
 
 from .db import SessionLocal
 from .models.user import User
 
-from passlib.context import CryptContext
-import hashlib
 # ✅ Load environment variables
 load_dotenv()
 
@@ -32,7 +31,7 @@ if SECRET_KEY == "supersecretkey2":
 pwd_context = CryptContext(
     schemes=["bcrypt"],
     deprecated="auto",
-    bcrypt__rounds=12,  # Good security level
+    bcrypt__rounds=12,  
 )
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
@@ -47,20 +46,24 @@ def get_db():
         db.close()
 
 
+def _pre_hash_password(password: str) -> str:
+    """
+    Pre-hash password with SHA256 to handle bcrypt's 72-byte limit.
+    Always pre-hash for consistency.
+    """
+    password_bytes = password.encode('utf-8')
+    return hashlib.sha256(password_bytes).hexdigest()
+
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
     Verify a password against a hashed password.
-    Handles the pre-hashing for long passwords.
+    Always pre-hashes with SHA256 for consistency.
     """
     try:
-        password_bytes = plain_password.encode('utf-8')
-
-        # Apply same pre-hashing logic as hash_password
-        if len(password_bytes) > 72:
-            password_hash = hashlib.sha256(password_bytes).hexdigest()
-            return pwd_context.verify(password_hash, hashed_password)
-
-        return pwd_context.verify(plain_password, hashed_password)
+        # Always pre-hash the password before verification
+        pre_hashed = _pre_hash_password(plain_password)
+        return pwd_context.verify(pre_hashed, hashed_password)
     except Exception as e:
         # Log the error for debugging
         print(f"Password verification error: {e}")
@@ -69,20 +72,12 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def get_password_hash(password: str) -> str:
     """
-    Hash a password using bcrypt with proper length handling.
-    Bcrypt has a 72-byte limit, so we pre-hash with SHA256 for long passwords.
+    Hash a password using bcrypt with SHA256 pre-hashing.
+    Always pre-hashes to ensure consistency and handle bcrypt's 72-byte limit.
     """
-    # Pre-hash the password with SHA256 to ensure it's always within bcrypt's 72-byte limit
-    # This is a recommended approach for handling bcrypt's limitation
-    password_bytes = password.encode('utf-8')
-
-    # Use SHA256 to create a fixed-length hash before bcrypt
-    if len(password_bytes) > 72:
-        # For passwords longer than 72 bytes, pre-hash with SHA256
-        password_hash = hashlib.sha256(password_bytes).hexdigest()
-        return pwd_context.hash(password_hash)
-
-    return pwd_context.hash(password)
+    # Always pre-hash with SHA256 for consistency
+    pre_hashed = _pre_hash_password(password)
+    return pwd_context.hash(pre_hashed)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
