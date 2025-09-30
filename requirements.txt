@@ -1,15 +1,24 @@
-fastapi==0.109.0
-uvicorn[standard]==0.27.0
-python-multipart==0.0.6
-sqlalchemy==2.0.23
-psycopg2-binary==2.9.9
-python-dotenv==1.0.0
-pydantic==2.5.3
-pydantic-settings==2.1.0
-passlib[bcrypt]>=1.7.4
-bcrypt>=4.1.0
-python-jose[cryptography]==3.3.0
-platformdirs==4.1.0
-httpx==0.26.0
-twilio
-python-docx
+backend==0.2.4.1
+docx2pdf==0.1.8
+fastapi==0.118.0
+httpx==0.28.1
+passlib==1.7.4
+platformdirs==4.4.0
+pydantic==2.11.9
+pydantic_settings==2.11.0
+python-dotenv==1.1.1
+python_docx==1.2.0
+python_jose==3.3.0
+pywin32==306
+SQLAlchemy==2.0.25
+twilio==8.12.0
+uvicorn==0.37.0
+
+
+###
+# python-multipart==0.0.6
+# psycopg2-binary==2.9.9
+# alembic==1.13.1
+# requests==2.31.0
+# grpcio==1.60.0
+# gunicorn==21.2.0
