@@ -138,7 +138,7 @@ def seed_initial_data():
         db.commit()
         db.refresh(county)
 
-        clan = Clan(name="عشيرة ات الحاج", county_id=county.id)
+        clan = Clan(name="عشيرة ات الحاج مسعود ", county_id=county.id)
         db.add(clan)
         db.commit()
         db.refresh(clan)
@@ -154,7 +154,7 @@ def seed_initial_data():
         super_admin = User(
             phone_number=os.getenv("SUPER_ADMIN_PHONE", "0658890501"),
             password_hash=get_password_hash(
-                os.getenv("SUPER_ADMIN_PASSWORD", "M.super7admin!2002")),
+                os.getenv("SUPER_ADMIN_PASSWORD")),
             role=UserRole.super_admin,
             phone_verified=True,
             first_name="Super",
@@ -181,6 +181,9 @@ async def lifespan(app: FastAPI):
     print(f"📊 Database URL: {os.getenv('DATABASE_URL', 'Not set')[:50]}...")
 
     try:
+        # deleting all tables
+        # Base.metadata.drop_all(bind=engine)
+
         # Create tables
         Base.metadata.create_all(bind=engine)
         print("✅ Database tables created/verified")

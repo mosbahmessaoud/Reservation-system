@@ -32,7 +32,7 @@ class Reservation(Base):
     status = Column(Enum(ReservationStatus),
                     default=ReservationStatus.pending_validation, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
-    # expires_at = Column(DateTime, nullable=True)
+    payment_valid = Column(Boolean, default=False, nullable=False) ## added new
 
     # Selections (nullable until finalized)
     hall_id = Column(Integer, ForeignKey("halls_table.id"), nullable=True)

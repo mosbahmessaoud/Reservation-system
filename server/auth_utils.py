@@ -3,7 +3,7 @@ Authentication utilities: JWT handling, password hashing, security dependencies.
 """
 import os
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, List
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 import hashlib
 
 from .db import SessionLocal
-from .models.user import User
+from .models.user import User, UserRole
 
 # ✅ Load environment variables
 load_dotenv()
@@ -31,7 +31,7 @@ if SECRET_KEY == "supersecretkey2":
 pwd_context = CryptContext(
     schemes=["bcrypt"],
     deprecated="auto",
-    bcrypt__rounds=12,  
+    bcrypt__rounds=12,
 )
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
@@ -207,27 +207,29 @@ def get_current_user(
     return user
 
 
-def require_role(*required_roles):
+def require_role(required_roles: List[UserRole]):
     """
     Dependency factory for role-based access control
 
     Args:
-        *required_roles: Variable number of allowed UserRole values
+        required_roles: List of allowed UserRole enum values
 
     Returns:
         Dependency function that checks user role
 
     Example:
         @app.get("/admin")
-        async def admin_route(user = Depends(require_role(UserRole.admin, UserRole.super_admin))):
+        async def admin_route(user = Depends(require_role([UserRole.admin, UserRole.super_admin]))):
             ...
     """
     def _require_role(current_user: User = Depends(get_current_user)) -> User:
         # Check if user has required role
         if current_user.role not in required_roles:
+            # ✅ FIXED: Properly format the role values for error message
+            role_names = ', '.join([r.value for r in required_roles])
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Insufficient permissions. Required roles: {[r.value for r in required_roles]}"
+                detail=f"Insufficient permissions. Required roles: {role_names}"
             )
 
         # Check if phone is verified

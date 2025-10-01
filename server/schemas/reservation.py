@@ -17,7 +17,6 @@ class ReservationBase(BaseModel):
     allow_others: Optional[bool] = False
     join_to_mass_wedding: Optional[bool] = False
     clan_id: int
-
     hall_id: Optional[int] = None
     haia_committee_id: Optional[int] = None
     madaeh_committee_id: Optional[int] = None
@@ -47,6 +46,7 @@ class ReservationOut(BaseModel):
 
     # Status and timing
     status: ReservationStatus
+    payment_valid: bool
     created_at: datetime
 
     # Committee assignments

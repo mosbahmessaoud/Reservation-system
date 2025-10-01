@@ -204,10 +204,13 @@ def check_cross_clan_restrictions(db: Session, base_filters: List, current_user:
     if is_same_clan:
         return
 
+    clan_n = db.query(Clan).filter(
+        Clan.id == resv_in.clan_id,
+    ).first()
     # Cross-clan permission check
     if not getattr(settings, 'allow_cross_clan_reservations', False):
         raise HTTPException(
-            400, "هذه العشيرة لا تقبل الحجوزات من العشائر الأخرى")
+            400, f"هذه العشيرة ({clan_n.name}) لا تقبل الحجوزات من العشائر الأخرى")
 
     dates_to_check = [date1] + ([date2] if date2 else [])
 
@@ -392,6 +395,7 @@ def create_reservation(resv_in: ReservationCreate, db: Session = Depends(get_db)
             allow_others=bool(
                 resv_in.join_to_mass_wedding or resv_in.allow_others),
             status=ReservationStatus.pending_validation,
+            payment_valid=False,
             created_at=datetime.utcnow(),
             hall_id=hall.id,
             haia_committee_id=resv_in.haia_committee_id,
@@ -474,9 +478,9 @@ def create_reservation(resv_in: ReservationCreate, db: Session = Depends(get_db)
                 f"Successfully created reservation {resv.id} for groom {current.id}")
 
             # Prepare response
-            response_message = "تم إنشاء الحجز بنجاح"
+            response_message = "\nتم إنشاء الحجز بنجاح"
             if pdf_error:
-                response_message += "\n\nتنبيه: فشل في إنشاء ملف PDF. يمكنك تحميله لاحقاً من قسم الحجوزات."
+                response_message += "\n\nتنبيه: فشل في إنشاء ملف PDF. \nيمكنك تحميله لاحقاً من قسم الحجوزات."
 
             return {
                 "message": response_message,
@@ -634,6 +638,46 @@ def cancel_a_groom_reservation(groom_id: int, db: Session = Depends(get_db), cur
     return {
         "message": "تم إلغاء الحجز بنجاح" + (" (كان في حالة مصدق عليه)" if valid_cancel else " (كان في حالة معلق)"),
         "reservation": ReservationOut.from_orm(resv)
+    }
+
+
+# a clan admin change the payment status
+
+
+@router.post("/{reservation_id}/change_payment_status", response_model=dict, dependencies=[Depends(clan_admin_required)])
+def cancel_a_groom_reservation(reservation_id: int, db: Session = Depends(get_db), current: User = Depends(clan_admin_required)):
+
+    resv = db.query(Reservation).filter(
+        Reservation.county_id == current.county_id,
+        Reservation.clan_id == current.clan_id,
+        Reservation.id == reservation_id,
+        Reservation.status != ReservationStatus.cancelled
+    ).first()
+    if not resv:
+        raise HTTPException(
+            status_code=404, detail=f"لا يوجد حجز معلق أو مصدق عليه   ")
+
+    # Store previous status before toggling
+    previous_status = resv.payment_valid
+
+    # Toggle payment status
+    resv.payment_valid = not resv.payment_valid
+
+    db.commit()
+    db.refresh(resv)
+
+    # Create appropriate message based on new status
+    status_message = "تم تأكيد دفع العريس بنجاح" if resv.payment_valid else "تم إلغاء تأكيد دفع العريس"
+
+    return {
+        "message": status_message,
+        "reservation": {
+            "id": resv.id,
+            "groom_id": resv.groom_id,
+            "payment_valid": resv.payment_valid,
+            "previous_payment_status": previous_status,
+            "status": resv.status.value
+        }
     }
 
 

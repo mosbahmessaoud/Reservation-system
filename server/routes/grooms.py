@@ -21,7 +21,7 @@ from server.utils.phone_utils import validate_algerian_number, validate_algerian
 from server.models.food import FoodMenu
 from ..models.reservation import Reservation, ReservationStatus
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from ..auth_utils import get_current_user, get_db, require_role
 from ..models.user import User, UserRole
 from ..schemas.user import UserOut, UserUpdate
@@ -34,9 +34,46 @@ router = APIRouter(
 groom_required = require_role([UserRole.groom])
 
 
-@router.get("/profile", response_model=UserOut, dependencies=[Depends(groom_required)])
+@router.get("/profile", dependencies=[Depends(groom_required)])
 def get_profile(db: Session = Depends(get_db), current: User = Depends(groom_required)):
-    return db.query(User).filter(User.id == current.id).first()
+
+    user = db.query(User).options(
+        joinedload(User.county),
+        joinedload(User.clan),
+    ).filter(User.id == current.id).first()
+
+    user_dic = {
+        "id": user.id,
+        "clan_id": user.clan_id,
+        "county_id": user.county_id,
+        "status": user.status,
+
+        "created_at": user.created_at.isoformat() if user.created_at else None,
+
+        # Joined data
+        "clan_name": user.clan.name if user.clan else None,
+        "county_name": user.county.name if user.county else None,
+
+
+        # Personal information
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "father_name": user.father_name,
+        "grandfather_name": user.grandfather_name,
+        "birth_date": str(user.birth_date) if user.birth_date else None,
+        "birth_address": user.birth_address,
+        "home_address": user.home_address,
+        "phone_number": user.phone_number,
+
+        # Guardian information
+        "guardian_name": user.guardian_name,
+        "guardian_phone": user.guardian_phone,
+        "guardian_home_address": user.guardian_home_address,
+        "guardian_birth_address": user.guardian_birth_address,
+        "guardian_birth_date": str(user.guardian_birth_date) if user.guardian_birth_date else None,
+    }
+
+    return user_dic
 
 
 @router.put("/profile", response_model=UserOut, dependencies=[Depends(groom_required)])

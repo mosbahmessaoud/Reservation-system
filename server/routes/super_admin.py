@@ -223,11 +223,9 @@ def create_clan_admin_account(user_in: UserCreate, db: Session = Depends(get_db)
     if user_in.clan_id is None:
         raise HTTPException(
             status_code=400, detail="Clan ID is required for clan admin")
-    if user_in.role is None:
-        raise HTTPException(status_code=400, detail="Role is required")
 
-    if user_in.role != UserRole.clan_admin:
-        raise HTTPException(status_code=400, detail="Role must be clan_admin")
+    # if user_in.role != UserRole.clan_admin:
+    #     raise HTTPException(status_code=400, detail="Role must be clan_admin")
 
         # Check if user is already a clan admin
     existing_user = db.query(User).filter(
@@ -267,9 +265,9 @@ def create_clan_admin_account(user_in: UserCreate, db: Session = Depends(get_db)
             User.role == UserRole.clan_admin
         )
     ).first()
-    if existing_clan_admin:
-        raise HTTPException(
-            status_code=400, detail="Clan already has a clan admin")
+    # if existing_clan_admin:
+    #     raise HTTPException(
+    #         status_code=400, detail="Clan already has a clan admin")
 
     # Hash the password
     if not user_in.password:
