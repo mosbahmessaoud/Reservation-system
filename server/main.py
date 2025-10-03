@@ -210,8 +210,8 @@ async def lifespan(app: FastAPI):
     # Startup
     print(f"🚀 Starting in {ENVIRONMENT} mode...")
     print(f"📊 Database URL: {os.getenv('DATABASE_URL', 'Not set')[:50]}...")
-
-    try:
+ 
+    try: 
         # Always use Alembic migrations (both dev and prod)
         print("🔄 Running Alembic migrations...")
         migration_success = run_alembic_migrations()
