@@ -32,7 +32,8 @@ from .routes import (
     grooms,
     food_route,
     public_routes,
-    admin_utils
+    admin_utils,
+    pdf_route
 )
 
 load_dotenv()
@@ -279,6 +280,7 @@ app.include_router(reservations.router)
 app.include_router(grooms.router)
 app.include_router(food_route.router)
 app.include_router(public_routes.router)
+app.include_router(pdf_route.router)
 
 
 if __name__ == "__main__":
