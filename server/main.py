@@ -1,3 +1,4 @@
+#server\main.py
 """
 FastAPI app entry point
 """
@@ -40,6 +41,36 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 IS_PRODUCTION = ENVIRONMENT == "production"
 
 
+def run_alembic_migrations():
+    """
+    Run Alembic migrations programmatically
+    This is safer than Base.metadata.create_all() in production
+    """
+    try:
+        from alembic.config import Config
+        from alembic import command
+        import os
+
+        # Get the directory containing this file
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        alembic_ini_path = os.path.join(base_dir, "alembic.ini")
+
+        if not os.path.exists(alembic_ini_path):
+            print("⚠️ alembic.ini not found, skipping migrations")
+            return False
+
+        print("🔄 Running Alembic migrations...")
+        alembic_cfg = Config(alembic_ini_path)
+        command.upgrade(alembic_cfg, "head")
+        print("✅ Migrations completed successfully")
+        return True
+    except Exception as e:
+        print(f"❌ Migration error: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
 def ensure_super_admin_exists():
     """
     Ensure super admin exists, create if missing.
@@ -49,7 +80,7 @@ def ensure_super_admin_exists():
     try:
         SUPER_ADMIN_PHONE = os.getenv("SUPER_ADMIN_PHONE", "0658890501")
         SUPER_ADMIN_PASSWORD = os.getenv(
-            "SUPER_ADMIN_PASSWORD", "M.super7admin!2233")
+            "SUPER_ADMIN_PASSWORD")
 
         # Check if super admin exists
         super_admin = db.query(User).filter(
@@ -79,7 +110,7 @@ def ensure_super_admin_exists():
         clan = db.query(Clan).filter(Clan.county_id == county.id).first()
         if not clan:
             print("🏘️ Creating default clan...")
-            clan = Clan(name="عشيرة ات الحاج", county_id=county.id)
+            clan = Clan(name="عشيرة ات الحاج مسعود ", county_id=county.id)
             db.add(clan)
             db.commit()
             db.refresh(clan)
@@ -90,7 +121,7 @@ def ensure_super_admin_exists():
             db.commit()
 
             # Create default hall
-            hall = Hall(name="دار " + clan.name, capacity=500, clan_id=clan.id)
+            hall = Hall(name="دار " + clan.name, capacity=600, clan_id=clan.id)
             db.add(hall)
             db.commit()
 
@@ -181,12 +212,15 @@ async def lifespan(app: FastAPI):
     print(f"📊 Database URL: {os.getenv('DATABASE_URL', 'Not set')[:50]}...")
 
     try:
-        # deleting all tables
-        # Base.metadata.drop_all(bind=engine)
+        # Always use Alembic migrations (both dev and prod)
+        print("🔄 Running Alembic migrations...")
+        migration_success = run_alembic_migrations()
 
-        # Create tables
-        Base.metadata.create_all(bind=engine)
-        print("✅ Database tables created/verified")
+        if not migration_success and not IS_PRODUCTION:
+            # Fallback to create_all only in development if migrations fail
+            print("⚠️ Migrations failed, falling back to create_all...")
+            Base.metadata.create_all(bind=engine)
+            print("✅ Database tables created/verified")
 
         # Always ensure super admin exists (important for Railway)
         ensure_super_admin_exists()

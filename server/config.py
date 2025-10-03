@@ -1,3 +1,4 @@
+# server\config.py
 """
 Centralized application configuration
 """
@@ -38,7 +39,7 @@ class Settings(BaseSettings):
 
     # Super Admin Default Password
     SUPER_ADMIN_PASSWORD: str = os.getenv(
-        "SUPER_ADMIN_PASSWORD", "M.superadmin")
+        "SUPER_ADMIN_PASSWORD")
 
     # ============================================
     # CORS Settings
@@ -95,7 +96,7 @@ class Settings(BaseSettings):
                 warnings.append(
                     "⚠️ CRITICAL: Using default SECRET_KEY in production!")
 
-            if self.SUPER_ADMIN_PASSWORD == "M.superadmin":
+            if self.SUPER_ADMIN_PASSWORD == "M.super7admin!2002":
                 warnings.append(
                     "⚠️ WARNING: Using default super admin password!")
 

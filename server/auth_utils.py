@@ -1,3 +1,4 @@
+#server\auth_utils.py
 """
 Authentication utilities: JWT handling, password hashing, security dependencies.
 """
