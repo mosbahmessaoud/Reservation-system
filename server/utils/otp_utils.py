@@ -1,3 +1,4 @@
+#server\utils\otp_utils.py
 import random
 from twilio.rest import Client
 import os
@@ -13,7 +14,7 @@ def generate_otp_code(length: int = 6) -> str:
     return ''.join([str(random.randint(0, 9)) for _ in range(length)])
 
 
-def send_otp_to_user(phone_number: str, code: str):
+def send_otp_to_user_by_twilo(phone_number: str, code: str):
     phone_number = validate_algerian_number(phone_number)
     if not TWILIO_SID or not TWILIO_TOKEN or not TWILIO_PHONE:
         raise ValueError("Twilio configuration is not set properly.")

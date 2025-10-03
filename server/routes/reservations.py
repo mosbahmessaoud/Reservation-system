@@ -1,3 +1,4 @@
+# server\routes\reservations.py
 """
 Reservation routes for grooms and clan admins.
 """

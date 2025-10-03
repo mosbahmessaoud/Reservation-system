@@ -1,3 +1,4 @@
+# server\schemas\reservation.py
 from pydantic import BaseModel
 from datetime import datetime, date
 from typing import Literal, Optional
@@ -32,38 +33,38 @@ class ReservationOut(BaseModel):
     id: int
     groom_id: int
     clan_id: int
-    hall_id: int
+    hall_id: Optional[int] = None
     county_id: int
 
     # Dates
     date1: date
     date2: Optional[date] = None
-    date2_bool: bool
+    date2_bool: Optional[bool] = None
 
     # Wedding type settings
     join_to_mass_wedding: bool
     allow_others: bool
 
     # Status and timing
-    status: ReservationStatus
-    payment_valid: bool
-    created_at: datetime
+    status: Optional[ReservationStatus] = None
+    payment_valid: Optional[bool] = None
+    created_at: Optional[datetime] = None
 
     # Committee assignments
     haia_committee_id: Optional[int] = None
     madaeh_committee_id: Optional[int] = None
 
     # Groom personal information
-    first_name: str
-    last_name: str
-    guardian_name: str
-    father_name: str
-    grandfather_name: str
-    birth_date: date
-    birth_address: str
-    home_address: str
-    phone_number: str
-    guardian_phone: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    guardian_name: Optional[str] = None
+    father_name: Optional[str] = None
+    grandfather_name: Optional[str] = None
+    birth_date: Optional[date] = None
+    birth_address: Optional[str] = None
+    home_address: Optional[str] = None
+    phone_number: Optional[str] = None
+    guardian_phone: Optional[str] = None
 
     # PDF and response info
     pdf_url: Optional[str] = None

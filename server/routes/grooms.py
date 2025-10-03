@@ -1,3 +1,5 @@
+
+#server\routes\grooms.py
 """
 Groom self-service endpoints.
 """
@@ -16,7 +18,7 @@ from server.schemas.food_type import FoodMenuOut
 from server.schemas.haia_committe import HaiaOut
 from server.schemas.hall import HallOut
 from server.schemas.madaih_committe import MadaihOut
-from server.utils.otp_utils import generate_otp_code, send_otp_to_user
+from server.utils.otp_utils import generate_otp_code, send_otp_to_user_by_twilo
 from server.utils.phone_utils import validate_algerian_number, validate_algerian_number_for_guardian
 from server.models.food import FoodMenu
 from ..models.reservation import Reservation, ReservationStatus
@@ -125,7 +127,7 @@ def update_profile(
 
             #     # Generate OTP and send to new number
             #     temp_code = generate_otp_code()
-            #     send_otp_to_user(value, temp_code)
+            #     send_otp_to_user_by_twilo(value, temp_code)
 
             #     current.temp_phone_number = value
             #     current.temp_phone_otp_code = temp_code

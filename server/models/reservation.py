@@ -1,3 +1,4 @@
+# server\models\reservation.py
 """
 Reservation model: Each reservation is for a groom, in a clan, for 1 or 2 consecutive days.
 """
@@ -21,7 +22,7 @@ class Reservation(Base):
     id = Column(Integer, primary_key=True, index=True)
     groom_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     clan_id = Column(Integer, ForeignKey("clans.id"), nullable=False)
-    county_id = Column(Integer, ForeignKey("counties.id"), nullable=True)
+    county_id = Column(Integer, ForeignKey("counties.id"), nullable=False)
 
     date1 = Column(Date, nullable=False)
     date2 = Column(Date, default=None, nullable=True)
@@ -32,7 +33,7 @@ class Reservation(Base):
     status = Column(Enum(ReservationStatus),
                     default=ReservationStatus.pending_validation, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
-    payment_valid = Column(Boolean, default=False, nullable=False) ## added new
+    payment_valid = Column(Boolean, default=False, nullable=True)  # added new
 
     # Selections (nullable until finalized)
     hall_id = Column(Integer, ForeignKey("halls_table.id"), nullable=True)

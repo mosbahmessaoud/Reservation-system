@@ -1,3 +1,5 @@
+
+#server\routes\auth.py
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 from platformdirs import user_config_dir
 from pydantic import BaseModel
@@ -10,7 +12,7 @@ from server.models.clan import Clan
 from server.models.county import County
 from server.schemas.user import UpdateGroomRequest, UserCreate, UserOut
 from server.schemas.auth import LoginRequest, RegisterResponse, Token
-from server.utils.otp_utils import send_otp_to_user, generate_otp_code
+from server.utils.otp_utils import send_otp_to_user_by_twilo, generate_otp_code
 from server.routes.grooms import groom_required
 from server.utils.phone_utils import validate_algerian_number, validate_number_phone, validate_number_phone_of_guardian
 from server.routes.clan_admin import clan_admin_required
@@ -172,7 +174,7 @@ def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
 
-    # send_otp_to_user(user.phone_number, otp_code)
+    # send_otp_to_user_by_twilo(user.phone_number, otp_code)
 
     return {
         "message": "تم إنشاء الحساب. تحقق من هاتفك للحصول على رمز التحقق.",
@@ -229,7 +231,7 @@ def resend_otp(payload: PhoneRequest, db: Session = Depends(get_db)):
     user.otp_expiration = datetime.utcnow() + timedelta(hours=2)
     db.commit()
 
-    # send_otp_to_user(user.phone_number, new_code)
+    # send_otp_to_user_by_twilo(user.phone_number, new_code)
 
     return {"message": "تم إرسال رمز تحقق جديد إلى هاتفك."}
 
@@ -281,6 +283,8 @@ def get_otp_code(phone_number: str, db: Session = Depends(get_db)):
     return {"otp_code": user.otp_code}
 
 
+
+
 @router.post("/request-password-reset")
 def request_password_reset(
     payload: PhoneRequest,
@@ -308,7 +312,7 @@ def request_password_reset(
     user.otp_expiration = datetime.utcnow() + timedelta(hours=2)
     db.commit()
 
-    # send_otp_to_user(user.phone_number, new_code)
+    # send_otp_to_user_by_twilo(user.phone_number, new_code)
 
     return {"message": "تم إرسال رمز التحقق لإعادة تعيين كلمة المرور إلى هاتفك."}
 
