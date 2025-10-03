@@ -384,6 +384,43 @@ def create_reservation(resv_in: ReservationCreate, db: Session = Depends(get_db)
         else:
             clan = db.query(Clan).filter(Clan.id == current.clan_id).first()
 
+        # # Create reservation with all validations passed
+        # resv = Reservation(
+        #     groom_id=current.id,
+        #     clan_id=resv_in.clan_id,
+        #     date1=date1,
+        #     date2=date2,
+        #     date2_bool=bool(resv_in.date2_bool),
+        #     join_to_mass_wedding=bool(
+        #         resv_in.join_to_mass_wedding or resv_in.allow_others),
+        #     allow_others=bool(
+        #         resv_in.join_to_mass_wedding or resv_in.allow_others),
+        #     status=ReservationStatus.pending_validation,
+        #     payment_valid=False,
+        #     created_at=datetime.utcnow(),
+        #     hall_id=hall.id,
+        #     haia_committee_id=resv_in.haia_committee_id,
+        #     madaeh_committee_id=resv_in.madaeh_committee_id,
+        #     county_id=clan.county_id,
+
+        #     # Personal information
+        #     first_name=groom.first_name,
+        #     last_name=groom.last_name,
+        #     father_name=groom.father_name,
+        #     grandfather_name=groom.grandfather_name,
+        #     birth_date=groom.birth_date,
+        #     birth_address=groom.birth_address,
+        #     home_address=groom.home_address,
+        #     phone_number=groom.phone_number,
+
+        #     # Guardian information
+        #     guardian_name=groom.guardian_name,
+        #     guardian_home_address=groom.guardian_home_address,
+        #     guardian_birth_address=groom.guardian_birth_address,
+        #     guardian_birth_date=groom.guardian_birth_date,
+        #     guardian_phone=groom.guardian_phone
+        # )
+
         # Create reservation with all validations passed
         resv = Reservation(
             groom_id=current.id,
@@ -422,78 +459,17 @@ def create_reservation(resv_in: ReservationCreate, db: Session = Depends(get_db)
         )
 
         db.add(resv)
+        db.commit()
+        db.refresh(resv)
 
-        # Enhanced PDF generation with better error handling
-        pdf_path = None
-        pdf_error = None
+        logger.info(
+            f"Successfully created reservation {resv.id} for groom {current.id}")
 
-        try:
-            # Flush to get the reservation ID but don't commit yet
-            db.flush()
-            reservation_id = resv.id
-            logger.info(
-                f"Starting PDF generation for reservation {reservation_id}")
-
-            # Generate PDF with enhanced error handling
-            pdf_path = generate_wedding_pdf(
-                resv, output_dir="generated_pdfs", db=db)
-
-            if pdf_path:
-                resv.pdf_url = pdf_path
-                logger.info(f"PDF successfully generated: {pdf_path}")
-            else:
-                raise Exception("PDF path is None")
-
-        except FileNotFoundError as e:
-            pdf_error = f"Template or LibreOffice not found: {str(e)}"
-            logger.error(
-                f"PDF generation failed - FileNotFoundError: {pdf_error}")
-        except subprocess.TimeoutExpired:
-            pdf_error = "PDF conversion timed out"
-            logger.error(f"PDF generation failed - Timeout: {pdf_error}")
-        except ImportError as e:
-            pdf_error = f"Required PDF library not installed: {str(e)}"
-            logger.error(f"PDF generation failed - ImportError: {pdf_error}")
-        except Exception as e:
-            pdf_error = f"Unexpected PDF generation error: {str(e)}"
-            logger.error(f"PDF generation failed - General error: {pdf_error}")
-
-        # Decision: Should we fail the entire reservation if PDF fails?
-        # Option 1: Fail completely (current behavior)
-        # Option 2: Save reservation without PDF (more resilient)
-
-        # For now, we'll use Option 2 for better user experience
-        if pdf_error:
-            logger.warning(
-                f"PDF generation failed for reservation {resv.id}, but saving reservation anyway: {pdf_error}")
-            # You could optionally set a flag indicating PDF generation failed
-            # resv.pdf_generation_failed = True
-            # resv.pdf_error_message = pdf_error[:255]  # Truncate if too long
-
-        try:
-            # Commit the transaction
-            db.commit()
-            db.refresh(resv)
-
-            logger.info(
-                f"Successfully created reservation {resv.id} for groom {current.id}")
-
-            # Prepare response
-            response_message = "\nتم إنشاء الحجز بنجاح"
-            if pdf_error:
-                response_message += "\n\nتنبيه: فشل في إنشاء ملف PDF. \nيمكنك تحميله لاحقاً من قسم الحجوزات."
-
-            return {
-                "message": response_message,
-                "reservation_id": resv.id,
-                # Empty string instead of None
-                "pdf_url": f"/download/{resv.id}" if pdf_path else ""
-            }
-
-        except Exception as db_error:
-            logger.error(f"Database commit failed for reservation: {db_error}")
-            db.rollback()
-            raise HTTPException(500, f"خطأ في حفظ الحجز: {str(db_error)}")
+        return {
+            "message": "\nتم إنشاء الحجز بنجاح",
+            "reservation_id": resv.id,
+            "pdf_url": ""  # PDF will be generated separately
+        }
 
     except HTTPException:
         # Re-raise HTTP exceptions as they are
@@ -502,7 +478,6 @@ def create_reservation(resv_in: ReservationCreate, db: Session = Depends(get_db)
         logger.error(f"Unexpected error in create_reservation: {e}")
         db.rollback()
         raise HTTPException(500, f"خطأ غير متوقع: {str(e)}")
-
 ###
 
 
