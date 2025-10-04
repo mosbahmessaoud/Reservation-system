@@ -177,13 +177,17 @@ def generate_wedding_pdf(reservation, output_dir: str, db):
         # Find template
         template_path = find_template_path()
 
-        # Generate file paths
-        filled_docx_path = output_dir / f"reservation_{reservation.id}.docx"
-        pdf_path = output_dir / f"reservation_{reservation.id}.pdf"
+        # Generate unique file paths with timestamp to avoid conflicts
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        unique_id = f"{reservation.id}_{timestamp}"
+
+        filled_docx_path = output_dir / f"reservation_{unique_id}_filled.docx"
+        pdf_path = output_dir / f"reservation_{unique_id}.pdf"
 
         logger.info(f"Generating PDF for reservation {reservation.id}")
         logger.info(f"Template: {template_path}")
-        logger.info(f"Output: {pdf_path}")
+        logger.info(f"DOCX output: {filled_docx_path}")
+        logger.info(f"PDF output: {pdf_path}")
 
         # Get database values with error handling
         try:
@@ -248,6 +252,12 @@ def generate_wedding_pdf(reservation, output_dir: str, db):
         # Fill DOCX template
         fill_docx_template(template_path, str(filled_docx_path), context)
 
+        # Verify DOCX was created
+        if not filled_docx_path.exists():
+            raise Exception("DOCX file was not created successfully")
+
+        logger.info(f"DOCX created successfully: {filled_docx_path}")
+
         # Convert to PDF
         convert_to_pdf(str(filled_docx_path), str(pdf_path))
 
@@ -256,6 +266,16 @@ def generate_wedding_pdf(reservation, output_dir: str, db):
             raise Exception("PDF file was not created successfully")
 
         logger.info(f"Successfully generated PDF: {pdf_path}")
+
+        # Always clean up the intermediate DOCX file
+        try:
+            if filled_docx_path.exists():
+                filled_docx_path.unlink()
+                logger.info(
+                    f"Cleaned up intermediate DOCX file: {filled_docx_path}")
+        except Exception as e:
+            logger.warning(f"Could not delete intermediate DOCX: {e}")
+
         return str(pdf_path)
 
     except Exception as e:
@@ -265,10 +285,13 @@ def generate_wedding_pdf(reservation, output_dir: str, db):
         try:
             if 'filled_docx_path' in locals() and filled_docx_path.exists():
                 filled_docx_path.unlink()
+                logger.info("Cleaned up partial DOCX file")
             if 'pdf_path' in locals() and pdf_path.exists():
                 pdf_path.unlink()
-        except:
-            pass
+                logger.info("Cleaned up partial PDF file")
+        except Exception as cleanup_error:
+            logger.warning(f"Cleanup error: {cleanup_error}")
+
         raise Exception(f"PDF generation failed: {e}")
 
 
