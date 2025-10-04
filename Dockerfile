@@ -10,6 +10,13 @@ RUN apt-get update && apt-get install -y \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
+
+RUN apt-get update && apt-get install -y \
+    libreoffice \
+    libreoffice-writer \
+    && apt-get clean
+
+
 # Copy requirements first for better caching
 COPY requirements.txt .
 
