@@ -79,68 +79,117 @@ def find_libreoffice():
 
 
 def convert_to_pdf(docx_path: str, pdf_path: str):
-    """Convert DOCX to PDF using available methods."""
+    """Convert DOCX to PDF using LibreOffice."""
     docx_path = Path(docx_path).resolve()
     pdf_path = Path(pdf_path).resolve()
 
     # Ensure output directory exists
     pdf_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Method 1: Try docx2pdf with COM initialization
-    try:
-        import pythoncom
-        pythoncom.CoInitialize()  # Add this line
-        try:
-            from docx2pdf import convert
-            convert(str(docx_path), str(pdf_path))
-            logger.info(
-                f"Successfully converted to PDF using docx2pdf: {pdf_path}")
-            return
-        finally:
-            pythoncom.CoUninitialize()  # Add this line
-    except ImportError:
-        logger.info("docx2pdf not available, trying LibreOffice...")
-    except Exception as e:
-        logger.warning(f"docx2pdf failed: {e}, trying LibreOffice...")
+    logger.info(f"Converting DOCX to PDF...")
+    logger.info(f"  Input: {docx_path}")
+    logger.info(f"  Output: {pdf_path}")
 
-    # Method 2: Try LibreOffice
+    # Find LibreOffice
     libreoffice_path = find_libreoffice()
-    if libreoffice_path:
-        try:
-            cmd = [
-                libreoffice_path,
-                "--headless",
-                "--convert-to", "pdf",
-                "--outdir", str(pdf_path.parent),
-                str(docx_path)
-            ]
+    if not libreoffice_path:
+        raise Exception("LibreOffice not found. Please install LibreOffice.")
 
-            result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=60)
+    try:
+        # Use LibreOffice to convert
+        # Output will be created in the same directory as input with .pdf extension
+        cmd = [
+            libreoffice_path,
+            "--headless",
+            "--convert-to", "pdf",
+            "--outdir", str(pdf_path.parent),
+            str(docx_path)
+        ]
 
-            if result.returncode == 0 and pdf_path.exists():
-                logger.info(
-                    f"Successfully converted to PDF using LibreOffice: {pdf_path}")
-                return
+        logger.info(f"Running command: {' '.join(cmd)}")
+
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=120  # Increased timeout to 2 minutes
+        )
+
+        # Log the output for debugging
+        if result.stdout:
+            logger.info(f"LibreOffice stdout: {result.stdout}")
+        if result.stderr:
+            logger.warning(f"LibreOffice stderr: {result.stderr}")
+
+        # LibreOffice creates the PDF with the same base name as the DOCX
+        expected_pdf = pdf_path.parent / f"{docx_path.stem}.pdf"
+
+        logger.info(f"Expected PDF location: {expected_pdf}")
+        logger.info(f"Target PDF location: {pdf_path}")
+
+        # Check if conversion was successful
+        if result.returncode != 0:
+            error_msg = result.stderr or result.stdout or "Unknown error"
+            raise Exception(f"LibreOffice conversion failed: {error_msg}")
+
+        # Wait a moment for file system to sync
+        import time
+        time.sleep(1)
+
+        # If the expected PDF location is different from target, move it
+        if expected_pdf != pdf_path:
+            if expected_pdf.exists():
+                import shutil
+                shutil.move(str(expected_pdf), str(pdf_path))
+                logger.info(f"Moved PDF from {expected_pdf} to {pdf_path}")
             else:
-                logger.error(f"LibreOffice conversion failed: {result.stderr}")
                 raise Exception(
-                    f"LibreOffice conversion failed: {result.stderr}")
+                    f"PDF was not created at expected location: {expected_pdf}")
 
-        except subprocess.TimeoutExpired:
-            logger.error("LibreOffice conversion timed out")
-            raise Exception("LibreOffice conversion timed out")
-        except Exception as e:
-            logger.error(f"LibreOffice conversion error: {e}")
-            raise
+        # Final verification
+        if not pdf_path.exists():
+            raise Exception(f"PDF file was not created at: {pdf_path}")
 
-    # Method 3: Fallback - just copy the DOCX file with PDF extension
-    # This is a last resort and won't be a real PDF
-    logger.warning("No PDF conversion method available, copying DOCX file")
-    import shutil
-    shutil.copy2(docx_path, pdf_path.with_suffix('.docx'))
-    raise Exception(
-        "No PDF conversion method available. Please install LibreOffice or docx2pdf.")
+        logger.info(f"Successfully converted to PDF: {pdf_path}")
+
+    except subprocess.TimeoutExpired:
+        logger.error("LibreOffice conversion timed out")
+        raise Exception("PDF conversion timed out (exceeded 2 minutes)")
+    except Exception as e:
+        logger.error(f"LibreOffice conversion error: {e}")
+        raise Exception(f"PDF conversion failed: {str(e)}")
+
+
+def find_libreoffice():
+    """Find LibreOffice executable path."""
+    possible_paths = [
+        "libreoffice",  # Linux in PATH
+        "/usr/bin/libreoffice",  # Linux standard location
+        "/usr/bin/soffice",  # Alternative Linux location
+        "soffice",  # Linux in PATH
+        "/Applications/LibreOffice.app/Contents/MacOS/soffice",  # Mac
+        r"C:\Program Files\LibreOffice\program\soffice.exe",  # Windows
+        # Windows 32-bit
+        r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
+    ]
+
+    for path in possible_paths:
+        try:
+            result = subprocess.run(
+                [path, "--version"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if result.returncode == 0:
+                logger.info(f"Found LibreOffice at: {path}")
+                logger.info(f"Version: {result.stdout.strip()}")
+                return path
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+            continue
+
+    logger.error("LibreOffice not   found in any standard location")
+    return None
 
 
 def find_template_path():
