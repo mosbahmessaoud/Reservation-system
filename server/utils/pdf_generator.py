@@ -144,30 +144,27 @@ def convert_to_pdf(docx_path: str, pdf_path: str):
 
 
 def find_template_path():
-    """Find the wedding request form template."""
-    possible_paths = [
-        "app/templates/wedding_request_form.docx",
-        "server/templates/wedding_request_form.docx",
-        "templates/wedding_request_form.docx",
-        "../templates/wedding_request_form.docx",
-        "wedding_request_form.docx"
-    ]
 
-    for path in possible_paths:
-        full_path = Path(path).resolve()
-        if full_path.exists():
-            logger.info(f"Found template at: {full_path}")
-            return str(full_path)
+    # Get the directory where pdf_generator.py is located (server/utils/)
+    current_file_dir = Path(__file__).parent  # server/utils/
 
-    # Try relative to current file
-    current_dir = Path(__file__).parent
-    template_path = current_dir.parent / "templates" / "wedding_request_form.docx"
+    # Go up one level to server/, then navigate to app/templates/
+    server_dir = current_file_dir.parent  # server/
+    template_path = server_dir / "app" / "templates" / "wedding_request_form.docx"
+
     if template_path.exists():
-        logger.info(f"Found template at: {template_path}")
-        return str(template_path)
+        logger.info(f"Found template at: {template_path.resolve()}")
+        return str(template_path.resolve())
 
-    logger.error("Template file not found in any expected location")
-    raise FileNotFoundError("wedding_request_form.docx template not found")
+    # Fallback: Log the issue for debugging
+    logger.error(
+        f"Template not found at expected path: {template_path.resolve()}")
+    logger.error(f"Current file location: {Path(__file__).resolve()}")
+    logger.error(f"Server directory: {server_dir.resolve()}")
+
+    raise FileNotFoundError(
+        f"wedding_request_form.docx not found at {template_path.resolve()}"
+    )
 
 
 def generate_wedding_pdf(reservation, output_dir: str, db):
