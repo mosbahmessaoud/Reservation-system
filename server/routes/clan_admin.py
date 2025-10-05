@@ -319,6 +319,8 @@ def update_settings(clan__id: int, settings: ClanSettingsUpdate, db: Session = D
 
     settings_up = [
         "max_grooms_per_date",
+        "years_max_reserv_GrooomFromOriginClan",
+        "years_max_reserv_GroomFromOutClan",
         "allow_two_day_reservations",
         "validation_deadline_days",
         "allowed_months_single_day",

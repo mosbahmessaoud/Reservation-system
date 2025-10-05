@@ -28,4 +28,8 @@ class ClanSettings(Base):
     days_to_accept_invites = Column(String, nullable=True)
     accept_invites_times = Column(String, nullable=True)
 
+    # mew columns
+    years_max_reserv_GroomFromOutClan = Column(Integer, default=3)
+    years_max_reserv_GrooomFromOriginClan= Column(Integer, default=1)
+
     clan = relationship("Clan", back_populates="settings")

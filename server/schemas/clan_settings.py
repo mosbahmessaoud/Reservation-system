@@ -7,6 +7,8 @@ from typing import Optional
 
 class ClanSettingsBase(BaseModel):
     max_grooms_per_date: Optional[int]
+    years_max_reserv_GroomFromOutClan: Optional[int]
+    years_max_reserv_GrooomFromOriginClan: Optional[int]
     allow_two_day_reservations: Optional[bool]
     validation_deadline_days: Optional[int]
     allowed_months_single_day: Optional[str]
