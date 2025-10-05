@@ -214,14 +214,14 @@ async def lifespan(app: FastAPI):
 
     try:
         # # Always use Alembic migrations (both dev and prod)
-        # print("🔄 Running Alembic migrations...")
-        # migration_success = run_alembic_migrations()
+        print("🔄 Running Alembic migrations...")
+        migration_success = run_alembic_migrations()
 
-        # if not migration_success and not IS_PRODUCTION:
-        #     # Fallback to create_all only in development if migrations fail
-        #     print("⚠️ Migrations failed, falling back to create_all...")
-        #     Base.metadata.create_all(bind=engine)
-        #     print("✅ Database tables created/verified")
+        if not migration_success and not IS_PRODUCTION:
+            # Fallback to create_all only in development if migrations fail
+            print("⚠️ Migrations failed, falling back to create_all...")
+            Base.metadata.create_all(bind=engine)
+            print("✅ Database tables created/verified")
 
         # Always ensure super admin exists (important for Railway)
         ensure_super_admin_exists()
