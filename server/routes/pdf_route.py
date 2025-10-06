@@ -18,45 +18,87 @@ from server.utils.pdf_generator import generate_wedding_pdf
 from server.models.reservation import Reservation
 from server.models.user import User, UserRole
 from ..auth_utils import get_current_user, get_db
+"""
+PDF upload/download routes with Railway Volume support
+"""
+import tempfile
+import shutil
+from typing import Optional
+from pathlib import Path
+import uuid
+from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi import APIRouter, File, UploadFile, HTTPException, Request, Depends
+import logging
+import os
+from sqlalchemy.orm import Session
+
+from ..auth_utils import get_db
 
 router = APIRouter(prefix="/pdf", tags=["pdf"])
 logger = logging.getLogger(__name__)
 
-
-# ⚠️ IMPORTANT: Railway uses ephemeral storage
-# Files will be lost on redeploy. For persistent storage, use:
-# - Railway Volumes (recommended)
-# - External storage (AWS S3, Cloudflare R2, etc.)
-
-# For Railway Volumes, mount to /data
+# Railway Volume Configuration
+# In Railway, set environment variable: RAILWAY_VOLUME_MOUNT_PATH=/data
 RAILWAY_VOLUME_PATH = os.getenv("RAILWAY_VOLUME_MOUNT_PATH", "/data")
 UPLOAD_DIR = Path(RAILWAY_VOLUME_PATH) / "uploads" / "pdfs"
 
-# Fallback to temp directory if volume not available
+# Fallback to temp directory if volume not available (for local development)
 if not os.path.exists(RAILWAY_VOLUME_PATH):
     UPLOAD_DIR = Path(tempfile.gettempdir()) / "uploads" / "pdfs"
-    print(
-        f"⚠️ WARNING: Using temp directory {UPLOAD_DIR}. Files will be deleted on redeploy!")
+    logger.warning(f"Using temp directory {UPLOAD_DIR}. Files will be deleted on restart!")
+else:
+    logger.info(f"Using Railway volume at {UPLOAD_DIR}")
 
+# Create upload directory
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # Configuration
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 ALLOWED_EXTENSIONS = {".pdf"}
 
-# Store file metadata in memory (use database in production)
+
+# Database model for file metadata (add this to your models)
+# You'll need to create this model and migration
+"""
+from sqlalchemy import Column, Integer, String, DateTime
+from datetime import datetime
+
+class UploadedFile(Base):
+    __tablename__ = "uploaded_files"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    file_id = Column(String, unique=True, index=True, nullable=False)
+    original_filename = Column(String, nullable=False)
+    stored_filename = Column(String, nullable=False)
+    file_size = Column(Integer, nullable=False)
+    content_type = Column(String, default="application/pdf")
+    upload_date = Column(DateTime, default=datetime.utcnow)
+    
+    # Optional: Link to user or clan
+    # uploaded_by_user_id = Column(Integer, ForeignKey("users.id"))
+    # clan_id = Column(Integer, ForeignKey("clans.id"))
+"""
+
+# Temporary in-memory storage (until you create the database model)
 file_metadata = {}
 
 
-@router.post("/pdf")
-async def upload_pdf(request: Request, file: UploadFile = File(...)):
+@router.post("/api/upload/pdf/")
+async def upload_pdf(
+    request: Request, 
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
     """
-    Upload a PDF file to Railway
-
+    Upload a PDF file to Railway Volume
+    
+    Args:
+        file: PDF file to upload
+        
     Returns:
         {
             "success": true,
-            "url": "https://your-railway-app.railway.app/api/upload/pdf/{file_id}",
+            "url": "https://your-app.railway.app/api/upload/pdf/{file_id}",
             "filename": "original_filename.pdf",
             "file_id": "unique_file_id",
             "size": 12345
@@ -64,44 +106,69 @@ async def upload_pdf(request: Request, file: UploadFile = File(...)):
     """
     try:
         # Validate file type
+        if not file.filename:
+            raise HTTPException(status_code=400, detail="No filename provided")
+            
         file_ext = os.path.splitext(file.filename)[1].lower()
         if file_ext not in ALLOWED_EXTENSIONS:
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid file type. Only PDF files are allowed."
+                detail="يُسمح فقط بملفات PDF"
             )
 
-        # Validate file size
+        # Read and validate file size
         content = await file.read()
         file_size = len(content)
+
+        if file_size == 0:
+            raise HTTPException(status_code=400, detail="الملف فارغ")
 
         if file_size > MAX_FILE_SIZE:
             raise HTTPException(
                 status_code=400,
-                detail=f"File too large. Maximum size is {MAX_FILE_SIZE / (1024*1024)}MB"
+                detail=f"حجم الملف كبير جداً. الحد الأقصى هو {MAX_FILE_SIZE / (1024*1024):.0f} ميجابايت"
             )
 
-        # Generate unique file ID
+        # Generate unique file ID and filename
         file_id = str(uuid.uuid4())
         unique_filename = f"{file_id}{file_ext}"
         file_path = UPLOAD_DIR / unique_filename
 
-        # Save file
-        with open(file_path, "wb") as buffer:
-            buffer.write(content)
+        # Save file to volume
+        try:
+            with open(file_path, "wb") as buffer:
+                buffer.write(content)
+            logger.info(f"File saved: {unique_filename} ({file_size} bytes)")
+        except Exception as e:
+            logger.error(f"Error saving file: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"فشل حفظ الملف: {str(e)}"
+            )
 
-        # Store metadata
+        # Store metadata (use database in production)
+        # TODO: Replace with database storage
         file_metadata[file_id] = {
             "original_filename": file.filename,
-            "filename": unique_filename,
+            "stored_filename": unique_filename,
             "size": file_size,
             "content_type": "application/pdf"
         }
-
-        # Get the base URL from request
-        base_url = str(request.base_url).rstrip('/')
+        
+        # If you have the UploadedFile model, use this instead:
+        # from server.models.uploaded_file import UploadedFile
+        # db_file = UploadedFile(
+        #     file_id=file_id,
+        #     original_filename=file.filename,
+        #     stored_filename=unique_filename,
+        #     file_size=file_size,
+        #     content_type="application/pdf"
+        # )
+        # db.add(db_file)
+        # db.commit()
 
         # Generate URL for file access
+        base_url = str(request.base_url).rstrip('/')
         file_url = f"{base_url}/api/upload/pdf/{file_id}"
 
         return JSONResponse(
@@ -115,36 +182,48 @@ async def upload_pdf(request: Request, file: UploadFile = File(...)):
             }
         )
 
-    except HTTPException as he:
-        raise he
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error(f"Upload error: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Error uploading file: {str(e)}"
+            detail=f"خطأ في تحميل الملف: {str(e)}"
         )
 
 
-@router.get("/pdf/{file_id}")
-async def get_pdf(file_id: str):
+@router.get("/api/upload/pdf/{file_id}")
+async def get_pdf(file_id: str, db: Session = Depends(get_db)):
     """
     Retrieve a PDF file by its ID
+    
+    Args:
+        file_id: Unique file identifier
+        
+    Returns:
+        PDF file as streaming response
     """
     try:
-        # Check if file exists in metadata
+        # Get metadata from memory (or database)
         if file_id not in file_metadata:
-            raise HTTPException(
-                status_code=404,
-                detail="File not found"
-            )
+            raise HTTPException(status_code=404, detail="الملف غير موجود")
+        
+        # If using database:
+        # from server.models.uploaded_file import UploadedFile
+        # db_file = db.query(UploadedFile).filter(UploadedFile.file_id == file_id).first()
+        # if not db_file:
+        #     raise HTTPException(status_code=404, detail="الملف غير موجود")
+        # metadata = {
+        #     "stored_filename": db_file.stored_filename,
+        #     "original_filename": db_file.original_filename
+        # }
 
         metadata = file_metadata[file_id]
-        file_path = UPLOAD_DIR / metadata["filename"]
+        file_path = UPLOAD_DIR / metadata["stored_filename"]
 
         if not file_path.exists():
-            raise HTTPException(
-                status_code=404,
-                detail="File not found on disk"
-            )
+            logger.error(f"File not found on disk: {file_path}")
+            raise HTTPException(status_code=404, detail="الملف غير موجود على الخادم")
 
         # Return file as streaming response
         def iterfile():
@@ -155,59 +234,115 @@ async def get_pdf(file_id: str):
             iterfile(),
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f'inline; filename="{metadata["original_filename"]}"'
+                "Content-Disposition": f'inline; filename="{metadata["original_filename"]}"',
+                "Cache-Control": "public, max-age=3600"
             }
         )
 
-    except HTTPException as he:
-        raise he
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error(f"Error retrieving file: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Error retrieving file: {str(e)}"
+            detail=f"خطأ في استرجاع الملف: {str(e)}"
         )
 
 
-@router.delete("/pdf/{file_id}")
-async def delete_pdf(file_id: str):
+@router.delete("/api/upload/pdf/{file_id}")
+async def delete_pdf(file_id: str, db: Session = Depends(get_db)):
     """
     Delete a PDF file by its ID
+    
+    Args:
+        file_id: Unique file identifier
+        
+    Returns:
+        Success message
     """
     try:
-        # Check if file exists in metadata
+        # Check metadata
         if file_id not in file_metadata:
-            raise HTTPException(
-                status_code=404,
-                detail="File not found"
-            )
+            raise HTTPException(status_code=404, detail="الملف غير موجود")
+        
+        # If using database:
+        # from server.models.uploaded_file import UploadedFile
+        # db_file = db.query(UploadedFile).filter(UploadedFile.file_id == file_id).first()
+        # if not db_file:
+        #     raise HTTPException(status_code=404, detail="الملف غير موجود")
 
         metadata = file_metadata[file_id]
-        file_path = UPLOAD_DIR / metadata["filename"]
+        file_path = UPLOAD_DIR / metadata["stored_filename"]
 
         # Delete file from disk
         if file_path.exists():
-            os.remove(file_path)
+            try:
+                os.remove(file_path)
+                logger.info(f"File deleted: {metadata['stored_filename']}")
+            except Exception as e:
+                logger.error(f"Error deleting file: {e}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"فشل حذف الملف: {str(e)}"
+                )
 
         # Remove from metadata
         del file_metadata[file_id]
+        
+        # If using database:
+        # db.delete(db_file)
+        # db.commit()
 
         return JSONResponse(
             status_code=200,
             content={
                 "success": True,
-                "message": "File deleted successfully"
+                "message": "تم حذف الملف بنجاح"
             }
         )
 
-    except HTTPException as he:
-        raise he
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error(f"Delete error: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Error deleting file: {str(e)}"
+            detail=f"خطأ في حذف الملف: {str(e)}"
         )
 
 
+@router.get("/api/upload/health")
+async def check_storage():
+    """
+    Check storage health and availability
+    """
+    try:
+        volume_exists = os.path.exists(RAILWAY_VOLUME_PATH)
+        upload_dir_exists = UPLOAD_DIR.exists()
+        
+        # Count files
+        file_count = len(list(UPLOAD_DIR.glob("*.pdf"))) if upload_dir_exists else 0
+        
+        # Get directory size
+        total_size = 0
+        if upload_dir_exists:
+            for file in UPLOAD_DIR.glob("*.pdf"):
+                total_size += file.stat().st_size
+        
+        return {
+            "status": "healthy",
+            "volume_mounted": volume_exists,
+            "upload_dir_exists": upload_dir_exists,
+            "upload_dir_path": str(UPLOAD_DIR),
+            "files_stored": file_count,
+            "total_size_mb": round(total_size / (1024 * 1024), 2),
+            "max_file_size_mb": MAX_FILE_SIZE / (1024 * 1024)
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e)
+        }
 # pdf generater#################
 
 

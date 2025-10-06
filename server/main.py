@@ -1,15 +1,15 @@
-# server\main.py
 """
-FastAPI app entry point
+FastAPI app entry point with Railway Volume support
 """
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from sqlalchemy import text
 
-from server.routes import uplode_pdf
+from server.routes import pdf_route
 
 from .auth_utils import get_password_hash
 from .db import engine, Base, SessionLocal
@@ -42,6 +42,43 @@ load_dotenv()
 
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 IS_PRODUCTION = ENVIRONMENT == "production"
+
+
+def initialize_volume_storage():
+    """
+    Initialize Railway Volume storage for PDF uploads
+    Creates necessary directories on startup
+    """
+    try:
+        RAILWAY_VOLUME_PATH = os.getenv("RAILWAY_VOLUME_MOUNT_PATH", "/data")
+        UPLOAD_DIR = Path(RAILWAY_VOLUME_PATH) / "uploads" / "pdfs"
+
+        if os.path.exists(RAILWAY_VOLUME_PATH):
+            print(f"✅ Railway volume found at: {RAILWAY_VOLUME_PATH}")
+            UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+            print(f"✅ Upload directory ready: {UPLOAD_DIR}")
+
+            # Check write permissions
+            test_file = UPLOAD_DIR / ".test"
+            try:
+                test_file.write_text("test")
+                test_file.unlink()
+                print("✅ Volume is writable")
+            except Exception as e:
+                print(f"⚠️ Warning: Volume may not be writable: {e}")
+
+            return True
+        else:
+            print(f"⚠️ Railway volume not found at {RAILWAY_VOLUME_PATH}")
+            print("⚠️ Using temporary storage - files will be lost on redeploy")
+            print("💡 To fix: Add a volume in Railway dashboard mounted at /data")
+            return False
+
+    except Exception as e:
+        print(f"❌ Error initializing volume storage: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
 
 
 def run_alembic_migrations():
@@ -82,8 +119,7 @@ def ensure_super_admin_exists():
     db = SessionLocal()
     try:
         SUPER_ADMIN_PHONE = os.getenv("SUPER_ADMIN_PHONE", "0658890501")
-        SUPER_ADMIN_PASSWORD = os.getenv(
-            "SUPER_ADMIN_PASSWORD")
+        SUPER_ADMIN_PASSWORD = os.getenv("SUPER_ADMIN_PASSWORD")
 
         # Check if super admin exists
         super_admin = db.query(User).filter(
@@ -211,12 +247,20 @@ def seed_initial_data():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    print("=" * 60)
     print(f"🚀 Starting in {ENVIRONMENT} mode...")
     print(f"📊 Database URL: {os.getenv('DATABASE_URL', 'Not set')[:50]}...")
+    print("=" * 60)
 
     try:
-        # # Always use Alembic migrations (both dev and prod)
-        print("🔄 Running Alembic migrations...")
+        # Initialize volume storage first
+        print("\n📦 Initializing storage...")
+        volume_ready = initialize_volume_storage()
+        if not volume_ready and IS_PRODUCTION:
+            print("⚠️ WARNING: Running in production without persistent storage!")
+
+        # Run Alembic migrations
+        print("\n🔄 Running database migrations...")
         migration_success = run_alembic_migrations()
 
         if not migration_success and not IS_PRODUCTION:
@@ -226,21 +270,26 @@ async def lifespan(app: FastAPI):
             print("✅ Database tables created/verified")
 
         # Always ensure super admin exists (important for Railway)
+        print("\n👤 Checking super admin...")
         ensure_super_admin_exists()
 
         # Seed initial data only if database is empty
+        print("\n🌱 Checking initial data...")
         seed_initial_data()
 
+        print("\n" + "=" * 60)
         print("✅ Application ready!")
+        print("=" * 60)
+
     except Exception as e:
-        print(f"❌ Startup error: {e}")
+        print(f"\n❌ Startup error: {e}")
         import traceback
         traceback.print_exc()
 
     yield
 
     # Shutdown
-    print("👋 Shutting down...")
+    print("\n👋 Shutting down...")
 
 
 app = FastAPI(
@@ -250,13 +299,6 @@ app = FastAPI(
     redoc_url="/redoc",
     lifespan=lifespan
 )
-# app = FastAPI(
-#     title="Wedding Reservation API",
-#     version="1.0.0",
-#     docs_url="/docs" if not IS_PRODUCTION else None,
-#     redoc_url="/redoc" if not IS_PRODUCTION else None,
-#     lifespan=lifespan
-# )
 
 # CORS
 ALLOWED_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
@@ -271,13 +313,32 @@ app.add_middleware(
 
 @app.get("/")
 async def root():
-    return {"status": "ok", "message": "Wedding Reservation API"}
+    return {
+        "status": "ok",
+        "message": "Wedding Reservation API",
+        "environment": ENVIRONMENT,
+        "docs": "/docs"
+    }
 
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
-    return {"status": "healthy", "message": "Wedding Reservation API is running"}
+    """Health check endpoint with storage status"""
+    import os
+    from pathlib import Path
+
+    RAILWAY_VOLUME_PATH = os.getenv("RAILWAY_VOLUME_MOUNT_PATH", "/data")
+    volume_mounted = os.path.exists(RAILWAY_VOLUME_PATH)
+
+    return {
+        "status": "healthy",
+        "message": "Wedding Reservation API is running",
+        "environment": ENVIRONMENT,
+        "storage": {
+            "volume_mounted": volume_mounted,
+            "volume_path": RAILWAY_VOLUME_PATH if volume_mounted else "not mounted"
+        }
+    }
 
 
 # Register routers
