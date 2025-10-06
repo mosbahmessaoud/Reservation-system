@@ -12,7 +12,7 @@ class ClanRulesBase(BaseModel):
 
 class ClanRulesCreate(ClanRulesBase):
     clan_id: int
-
+  
 
 class ClanRulesUpdate(ClanRulesBase):
     pass

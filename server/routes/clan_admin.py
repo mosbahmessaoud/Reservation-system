@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from server.CRUD import clan_rules_crud
 from server.models.reservation import Reservation, ReservationStatus
+from server.schemas.clan import ClanOut
 from server.schemas.clan_rules_schema import ClanRulesCreate, ClanRulesResponse, ClanRulesUpdate
 from server.schemas.haia_committe import HaiaCreate, HaiaOut, HaiaUpdate
 from server.schemas.madaih_committe import MadaihCreate, MadaihOut, MadaihUpdate
@@ -30,6 +31,13 @@ router = APIRouter(
 
 clan_admin_required = require_role([UserRole.clan_admin])
 
+
+@router.get("/clan_info", response_model=ClanOut)
+def get_clan_info(db: Session = Depends(get_db), current: User = Depends(get_current_user)):
+    clan = db.query(Clan).filter(Clan.id == current.clan_id).first()
+    if not clan:
+        raise HTTPException(status_code=404, detail="Clan not found")
+    return clan
 # Grooms CRUD (view only those in own clan)
 
 # Add this to your FastAPI router file (e.g., grooms.py or main.py)
@@ -348,7 +356,7 @@ def update_settings(clan__id: int, settings: ClanSettingsUpdate, db: Session = D
 ### clan rules ################
 
 
-@router.post("/clan-rules", response_model=ClanRulesResponse, status_code=201)
+@router.post("/clan-rules", status_code=200, response_model=ClanRulesResponse, dependencies=[Depends(clan_admin_required)])
 def create_clan_rules(
     rules_data: ClanRulesCreate,
     db: Session = Depends(get_db)
@@ -365,17 +373,7 @@ def create_clan_rules(
     return clan_rules_crud.create(db, rules_data)
 
 
-@router.get("/clan-rules", response_model=List[ClanRulesResponse])
-def get_all_clan_rules(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=100),
-    db: Session = Depends(get_db)
-):
-    """Get all clan rules with pagination (Admin only)"""
-    return clan_rules_crud.get_all(db, skip=skip, limit=limit)
-
-
-@router.get("/clan-rules/{rule_id}", response_model=ClanRulesResponse)
+@router.get("/clan-rules/{rule_id}", response_model=ClanRulesResponse, dependencies=[Depends(clan_admin_required)])
 def get_clan_rules_by_id(
     rule_id: int,
     db: Session = Depends(get_db)
@@ -390,7 +388,7 @@ def get_clan_rules_by_id(
     return rules
 
 
-@router.get("/clan-rules/clan/{clan_id}", response_model=ClanRulesResponse)
+@router.get("/clan-rules/clan/{clan_id}", response_model=ClanRulesResponse, dependencies=[Depends(clan_admin_required)])
 def get_clan_rules_by_clan_id(
     clan_id: int,
     db: Session = Depends(get_db)

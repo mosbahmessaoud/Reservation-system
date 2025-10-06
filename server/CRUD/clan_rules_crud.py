@@ -15,10 +15,6 @@ def get_by_clan_id(db: Session, clan_id: int) -> Optional[ClanRules]:
     return db.query(ClanRules).filter(ClanRules.clan_id == clan_id).first()
 
 
-def get_all(db: Session, skip: int = 0, limit: int = 100) -> List[ClanRules]:
-    """Get all clan rules with pagination"""
-    return db.query(ClanRules).offset(skip).limit(limit).all()
-
 
 def create(db: Session, rules_data: ClanRulesCreate) -> ClanRules:
     """Create new clan rules"""
