@@ -9,6 +9,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from sqlalchemy import text
 
+from server.routes import uplode_pdf
+
 from .auth_utils import get_password_hash
 from .db import engine, Base, SessionLocal
 
