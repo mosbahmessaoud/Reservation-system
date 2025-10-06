@@ -1,5 +1,5 @@
 """
-Simplified PDF generation and download routes.
+Simplified PDF generation and download routes with ClanRules integration.
 """
 from ..auth_utils import get_db
 from fastapi import APIRouter, File, UploadFile, HTTPException, Request, Depends
@@ -19,17 +19,13 @@ from sqlalchemy.orm import Session
 from server.utils.pdf_generator import generate_wedding_pdf
 from server.models.reservation import Reservation
 from server.models.user import User, UserRole
+from server.models.clan_rules import ClanRules  # Add this import
 from ..auth_utils import get_current_user, get_db
-"""
-PDF upload/download routes with Railway Volume support
-"""
-
 
 router = APIRouter(prefix="/pdf", tags=["pdf"])
 logger = logging.getLogger(__name__)
 
 # Railway Volume Configuration
-# In Railway, set environment variable: RAILWAY_VOLUME_MOUNT_PATH=/data
 RAILWAY_VOLUME_PATH = os.getenv("RAILWAY_VOLUME_MOUNT_PATH", "/data")
 UPLOAD_DIR = Path(RAILWAY_VOLUME_PATH) / "uploads" / "pdfs"
 
@@ -48,29 +44,6 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 ALLOWED_EXTENSIONS = {".pdf"}
 
-
-# Database model for file metadata (add this to your models)
-# You'll need to create this model and migration
-"""
-from sqlalchemy import Column, Integer, String, DateTime
-from datetime import datetime
-
-class UploadedFile(Base):
-    __tablename__ = "uploaded_files"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    file_id = Column(String, unique=True, index=True, nullable=False)
-    original_filename = Column(String, nullable=False)
-    stored_filename = Column(String, nullable=False)
-    file_size = Column(Integer, nullable=False)
-    content_type = Column(String, default="application/pdf")
-    upload_date = Column(DateTime, default=datetime.utcnow)
-    
-    # Optional: Link to user or clan
-    # uploaded_by_user_id = Column(Integer, ForeignKey("users.id"))
-    # clan_id = Column(Integer, ForeignKey("clans.id"))
-"""
-
 # Temporary in-memory storage (until you create the database model)
 file_metadata = {}
 
@@ -79,9 +52,16 @@ file_metadata = {}
 async def upload_pdf(
     request: Request,
     file: UploadFile = File(...),
+    clan_id: Optional[int] = None,  # Add clan_id parameter
     db: Session = Depends(get_db)
 ):
+    """
+    Upload PDF and optionally save URL to ClanRules table
 
+    Args:
+        file: PDF file to upload
+        clan_id: Optional clan ID to save PDF URL to ClanRules table
+    """
     try:
         # Validate file type
         if not file.filename:
@@ -124,8 +104,7 @@ async def upload_pdf(
                 detail=f"فشل حفظ الملف: {str(e)}"
             )
 
-        # Store metadata (use database in production)
-        # TODO: Replace with database storage
+        # Store metadata
         file_metadata[file_id] = {
             "original_filename": file.filename,
             "stored_filename": unique_filename,
@@ -133,22 +112,34 @@ async def upload_pdf(
             "content_type": "application/pdf"
         }
 
-        # If you have the UploadedFile model, use this instead:
-        # from server.models.uploaded_file import UploadedFile
-        # db_file = UploadedFile(
-        #     file_id=file_id,
-        #     original_filename=file.filename,
-        #     stored_filename=unique_filename,
-        #     file_size=file_size,
-        #     content_type="application/pdf"
-        # )
-        # db.add(db_file)
-        # db.commit()
-
-        # Generate URL for file access - FIX THIS LINE
+        # Generate URL for file access
         base_url = str(request.base_url).rstrip('/')
-        # Added /pdf prefix
         file_url = f"{base_url}/pdf/api/upload/pdf/{file_id}"
+
+        # Save URL to ClanRules if clan_id is provided
+        if clan_id:
+            clan_rules = db.query(ClanRules).filter(
+                ClanRules.clan_id == clan_id
+            ).first()
+
+            if clan_rules:
+                # Update existing ClanRules
+                clan_rules.rules_book_of_clan_pdf = file_url
+                db.commit()
+                db.refresh(clan_rules)
+                logger.info(
+                    f"Updated ClanRules for clan {clan_id} with PDF URL")
+            else:
+                # Create new ClanRules entry
+                new_clan_rules = ClanRules(
+                    clan_id=clan_id,
+                    rules_book_of_clan_pdf=file_url
+                )
+                db.add(new_clan_rules)
+                db.commit()
+                db.refresh(new_clan_rules)
+                logger.info(
+                    f"Created new ClanRules for clan {clan_id} with PDF URL")
 
         return JSONResponse(
             status_code=200,
@@ -157,7 +148,8 @@ async def upload_pdf(
                 "url": file_url,
                 "filename": file.filename,
                 "file_id": file_id,
-                "size": file_size
+                "size": file_size,
+                "clan_id": clan_id
             }
         )
 
@@ -165,6 +157,7 @@ async def upload_pdf(
         raise
     except Exception as e:
         logger.error(f"Upload error: {e}")
+        db.rollback()
         raise HTTPException(
             status_code=500,
             detail=f"خطأ في تحميل الملف: {str(e)}"
@@ -186,16 +179,6 @@ async def get_pdf(file_id: str, db: Session = Depends(get_db)):
         # Get metadata from memory (or database)
         if file_id not in file_metadata:
             raise HTTPException(status_code=404, detail="الملف غير موجود")
-
-        # If using database:
-        # from server.models.uploaded_file import UploadedFile
-        # db_file = db.query(UploadedFile).filter(UploadedFile.file_id == file_id).first()
-        # if not db_file:
-        #     raise HTTPException(status_code=404, detail="الملف غير موجود")
-        # metadata = {
-        #     "stored_filename": db_file.stored_filename,
-        #     "original_filename": db_file.original_filename
-        # }
 
         metadata = file_metadata[file_id]
         file_path = UPLOAD_DIR / metadata["stored_filename"]
@@ -230,12 +213,17 @@ async def get_pdf(file_id: str, db: Session = Depends(get_db)):
 
 
 @router.delete("/api/upload/pdf/{file_id}")
-async def delete_pdf(file_id: str, db: Session = Depends(get_db)):
+async def delete_pdf(
+    file_id: str,
+    clan_id: Optional[int] = None,  # Add clan_id parameter
+    db: Session = Depends(get_db)
+):
     """
-    Delete a PDF file by its ID
+    Delete a PDF file by its ID and optionally remove from ClanRules
 
     Args:
         file_id: Unique file identifier
+        clan_id: Optional clan ID to remove PDF URL from ClanRules table
 
     Returns:
         Success message
@@ -244,12 +232,6 @@ async def delete_pdf(file_id: str, db: Session = Depends(get_db)):
         # Check metadata
         if file_id not in file_metadata:
             raise HTTPException(status_code=404, detail="الملف غير موجود")
-
-        # If using database:
-        # from server.models.uploaded_file import UploadedFile
-        # db_file = db.query(UploadedFile).filter(UploadedFile.file_id == file_id).first()
-        # if not db_file:
-        #     raise HTTPException(status_code=404, detail="الملف غير موجود")
 
         metadata = file_metadata[file_id]
         file_path = UPLOAD_DIR / metadata["stored_filename"]
@@ -269,9 +251,17 @@ async def delete_pdf(file_id: str, db: Session = Depends(get_db)):
         # Remove from metadata
         del file_metadata[file_id]
 
-        # If using database:
-        # db.delete(db_file)
-        # db.commit()
+        # Remove URL from ClanRules if clan_id is provided
+        if clan_id:
+            clan_rules = db.query(ClanRules).filter(
+                ClanRules.clan_id == clan_id
+            ).first()
+
+            if clan_rules:
+                clan_rules.rules_book_of_clan_pdf = None
+                db.commit()
+                logger.info(
+                    f"Removed PDF URL from ClanRules for clan {clan_id}")
 
         return JSONResponse(
             status_code=200,
@@ -285,9 +275,51 @@ async def delete_pdf(file_id: str, db: Session = Depends(get_db)):
         raise
     except Exception as e:
         logger.error(f"Delete error: {e}")
+        db.rollback()
         raise HTTPException(
             status_code=500,
             detail=f"خطأ في حذف الملف: {str(e)}"
+        )
+
+
+@router.get("/api/clan/{clan_id}/rules/pdf")
+async def get_clan_rules_pdf(clan_id: int, db: Session = Depends(get_db)):
+    """
+    Get the PDF URL for a specific clan's rules
+
+    Args:
+        clan_id: Clan ID
+
+    Returns:
+        PDF URL if exists
+    """
+    try:
+        clan_rules = db.query(ClanRules).filter(
+            ClanRules.clan_id == clan_id
+        ).first()
+
+        if not clan_rules or not clan_rules.rules_book_of_clan_pdf:
+            raise HTTPException(
+                status_code=404,
+                detail="لا يوجد ملف PDF لقواعد هذه العشيرة"
+            )
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "success": True,
+                "pdf_url": clan_rules.rules_book_of_clan_pdf,
+                "clan_id": clan_id
+            }
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving clan rules PDF: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"خطأ في استرجاع ملف PDF: {str(e)}"
         )
 
 
