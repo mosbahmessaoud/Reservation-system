@@ -1,6 +1,8 @@
 """
 Simplified PDF generation and download routes.
 """
+from ..auth_utils import get_db
+from fastapi import APIRouter, File, UploadFile, HTTPException, Request, Depends
 import tempfile
 import shutil
 from typing import Optional
@@ -21,18 +23,7 @@ from ..auth_utils import get_current_user, get_db
 """
 PDF upload/download routes with Railway Volume support
 """
-import tempfile
-import shutil
-from typing import Optional
-from pathlib import Path
-import uuid
-from fastapi.responses import JSONResponse, StreamingResponse
-from fastapi import APIRouter, File, UploadFile, HTTPException, Request, Depends
-import logging
-import os
-from sqlalchemy.orm import Session
 
-from ..auth_utils import get_db
 
 router = APIRouter(prefix="/pdf", tags=["pdf"])
 logger = logging.getLogger(__name__)
@@ -45,7 +36,8 @@ UPLOAD_DIR = Path(RAILWAY_VOLUME_PATH) / "uploads" / "pdfs"
 # Fallback to temp directory if volume not available (for local development)
 if not os.path.exists(RAILWAY_VOLUME_PATH):
     UPLOAD_DIR = Path(tempfile.gettempdir()) / "uploads" / "pdfs"
-    logger.warning(f"Using temp directory {UPLOAD_DIR}. Files will be deleted on restart!")
+    logger.warning(
+        f"Using temp directory {UPLOAD_DIR}. Files will be deleted on restart!")
 else:
     logger.info(f"Using Railway volume at {UPLOAD_DIR}")
 
@@ -85,30 +77,16 @@ file_metadata = {}
 
 @router.post("/api/upload/pdf/")
 async def upload_pdf(
-    request: Request, 
+    request: Request,
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
-    """
-    Upload a PDF file to Railway Volume
-    
-    Args:
-        file: PDF file to upload
-        
-    Returns:
-        {
-            "success": true,
-            "url": "https://your-app.railway.app/api/upload/pdf/{file_id}",
-            "filename": "original_filename.pdf",
-            "file_id": "unique_file_id",
-            "size": 12345
-        }
-    """
+
     try:
         # Validate file type
         if not file.filename:
             raise HTTPException(status_code=400, detail="No filename provided")
-            
+
         file_ext = os.path.splitext(file.filename)[1].lower()
         if file_ext not in ALLOWED_EXTENSIONS:
             raise HTTPException(
@@ -154,7 +132,7 @@ async def upload_pdf(
             "size": file_size,
             "content_type": "application/pdf"
         }
-        
+
         # If you have the UploadedFile model, use this instead:
         # from server.models.uploaded_file import UploadedFile
         # db_file = UploadedFile(
@@ -167,9 +145,10 @@ async def upload_pdf(
         # db.add(db_file)
         # db.commit()
 
-        # Generate URL for file access
+        # Generate URL for file access - FIX THIS LINE
         base_url = str(request.base_url).rstrip('/')
-        file_url = f"{base_url}/api/upload/pdf/{file_id}"
+        # Added /pdf prefix
+        file_url = f"{base_url}/pdf/api/upload/pdf/{file_id}"
 
         return JSONResponse(
             status_code=200,
@@ -196,10 +175,10 @@ async def upload_pdf(
 async def get_pdf(file_id: str, db: Session = Depends(get_db)):
     """
     Retrieve a PDF file by its ID
-    
+
     Args:
         file_id: Unique file identifier
-        
+
     Returns:
         PDF file as streaming response
     """
@@ -207,7 +186,7 @@ async def get_pdf(file_id: str, db: Session = Depends(get_db)):
         # Get metadata from memory (or database)
         if file_id not in file_metadata:
             raise HTTPException(status_code=404, detail="الملف غير موجود")
-        
+
         # If using database:
         # from server.models.uploaded_file import UploadedFile
         # db_file = db.query(UploadedFile).filter(UploadedFile.file_id == file_id).first()
@@ -223,7 +202,8 @@ async def get_pdf(file_id: str, db: Session = Depends(get_db)):
 
         if not file_path.exists():
             logger.error(f"File not found on disk: {file_path}")
-            raise HTTPException(status_code=404, detail="الملف غير موجود على الخادم")
+            raise HTTPException(
+                status_code=404, detail="الملف غير موجود على الخادم")
 
         # Return file as streaming response
         def iterfile():
@@ -253,10 +233,10 @@ async def get_pdf(file_id: str, db: Session = Depends(get_db)):
 async def delete_pdf(file_id: str, db: Session = Depends(get_db)):
     """
     Delete a PDF file by its ID
-    
+
     Args:
         file_id: Unique file identifier
-        
+
     Returns:
         Success message
     """
@@ -264,7 +244,7 @@ async def delete_pdf(file_id: str, db: Session = Depends(get_db)):
         # Check metadata
         if file_id not in file_metadata:
             raise HTTPException(status_code=404, detail="الملف غير موجود")
-        
+
         # If using database:
         # from server.models.uploaded_file import UploadedFile
         # db_file = db.query(UploadedFile).filter(UploadedFile.file_id == file_id).first()
@@ -288,7 +268,7 @@ async def delete_pdf(file_id: str, db: Session = Depends(get_db)):
 
         # Remove from metadata
         del file_metadata[file_id]
-        
+
         # If using database:
         # db.delete(db_file)
         # db.commit()
@@ -319,16 +299,17 @@ async def check_storage():
     try:
         volume_exists = os.path.exists(RAILWAY_VOLUME_PATH)
         upload_dir_exists = UPLOAD_DIR.exists()
-        
+
         # Count files
-        file_count = len(list(UPLOAD_DIR.glob("*.pdf"))) if upload_dir_exists else 0
-        
+        file_count = len(list(UPLOAD_DIR.glob("*.pdf"))
+                         ) if upload_dir_exists else 0
+
         # Get directory size
         total_size = 0
         if upload_dir_exists:
             for file in UPLOAD_DIR.glob("*.pdf"):
                 total_size += file.stat().st_size
-        
+
         return {
             "status": "healthy",
             "volume_mounted": volume_exists,
