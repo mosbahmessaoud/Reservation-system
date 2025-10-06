@@ -15,7 +15,6 @@ def get_by_clan_id(db: Session, clan_id: int) -> Optional[ClanRules]:
     return db.query(ClanRules).filter(ClanRules.clan_id == clan_id).first()
 
 
-
 def create(db: Session, rules_data: ClanRulesCreate) -> ClanRules:
     """Create new clan rules"""
     db_rules = ClanRules(
@@ -23,7 +22,8 @@ def create(db: Session, rules_data: ClanRulesCreate) -> ClanRules:
         general_rule=rules_data.general_rule,
         groom_supplies=rules_data.groom_supplies,
         rule_about_clothing=rules_data.rule_about_clothing,
-        rule_about_kitchenware=rules_data.rule_about_kitchenware
+        rule_about_kitchenware=rules_data.rule_about_kitchenware,
+        rules_book_of_clan_pdf=rules_data.rules_book_of_clan_pdf
     )
     db.add(db_rules)
     db.commit()

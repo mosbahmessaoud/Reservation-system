@@ -15,7 +15,7 @@ class ClanRules(Base):
     groom_supplies = Column(Text, nullable=True)
     rule_about_clothing = Column(Text, nullable=True)
     rule_about_kitchenware = Column(Text, nullable=True)
-    rules_book_of_clan_pdf = Column(String, nullable=True)
+    rules_book_of_clan_pdf = Column(Text, nullable=True)
 
     clan_id = Column(Integer, ForeignKey(
         "clans.id", ondelete="CASCADE"), nullable=False)
