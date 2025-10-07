@@ -1,5 +1,5 @@
 
-#server\routes\grooms.py
+# server\routes\grooms.py
 """
 Groom self-service endpoints.
 """
@@ -213,6 +213,21 @@ def get_clan_rules(
 ):
     """Get clan rules by ID (Groom read-only access)"""
     rules = clan_rules_crud.get_by_id(db, rule_id)
+    if not rules:
+        raise HTTPException(
+            status_code=404,
+            detail="Clan rules not found"
+        )
+    return rules
+
+
+@router.get("/clan-rules", response_model=ClanRulesResponse)
+def get_clan_rules(
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user)
+):
+    """Get clan rules by ID (Groom read-only access)"""
+    rules = clan_rules_crud.get_by_clan_id(db, current.clan_id)
     if not rules:
         raise HTTPException(
             status_code=404,
