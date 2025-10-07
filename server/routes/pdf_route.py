@@ -48,19 +48,21 @@ ALLOWED_EXTENSIONS = {".pdf"}
 file_metadata = {}
 
 
+from fastapi import Form
+
 @router.post("/api/upload/pdf/")
 async def upload_pdf(
     request: Request,
     file: UploadFile = File(...),
-    clan_id: Optional[int] = None,  # Add clan_id parameter
+    clan_id: Optional[int] = Form(None),  # Changed to Form field
     db: Session = Depends(get_db)
 ):
     """
     Upload PDF and optionally save URL to ClanRules table
-
+    
     Args:
         file: PDF file to upload
-        clan_id: Optional clan ID to save PDF URL to ClanRules table
+        clan_id: Optional clan ID to save PDF URL to ClanRules table (as form field)
     """
     try:
         # Validate file type
@@ -115,31 +117,35 @@ async def upload_pdf(
         # Generate URL for file access
         base_url = str(request.base_url).rstrip('/')
         file_url = f"{base_url}/pdf/api/upload/pdf/{file_id}"
-
+        
         # Save URL to ClanRules if clan_id is provided
         if clan_id:
-            clan_rules = db.query(ClanRules).filter(
-                ClanRules.clan_id == clan_id
-            ).first()
-
-            if clan_rules:
-                # Update existing ClanRules
-                clan_rules.rules_book_of_clan_pdf = file_url
-                db.commit()
-                db.refresh(clan_rules)
-                logger.info(
-                    f"Updated ClanRules for clan {clan_id} with PDF URL")
-            else:
-                # Create new ClanRules entry
-                new_clan_rules = ClanRules(
-                    clan_id=clan_id,
-                    rules_book_of_clan_pdf=file_url
-                )
-                db.add(new_clan_rules)
-                db.commit()
-                db.refresh(new_clan_rules)
-                logger.info(
-                    f"Created new ClanRules for clan {clan_id} with PDF URL")
+            try:
+                clan_rules = db.query(ClanRules).filter(
+                    ClanRules.clan_id == clan_id
+                ).first()
+                
+                if clan_rules:
+                    # Update existing ClanRules
+                    clan_rules.rules_book_of_clan_pdf = file_url
+                    db.commit()
+                    db.refresh(clan_rules)
+                    logger.info(f"✅ Updated ClanRules ID={clan_rules.id} for clan {clan_id} with PDF URL: {file_url}")
+                else:
+                    # Create new ClanRules entry
+                    new_clan_rules = ClanRules(
+                        clan_id=clan_id,
+                        rules_book_of_clan_pdf=file_url
+                    )
+                    db.add(new_clan_rules)
+                    db.commit()
+                    db.refresh(new_clan_rules)
+                    logger.info(f"✅ Created new ClanRules ID={new_clan_rules.id} for clan {clan_id} with PDF URL: {file_url}")
+            except Exception as db_error:
+                logger.error(f"❌ Database error saving PDF URL to ClanRules: {db_error}")
+                db.rollback()
+                # Don't fail the upload, just log the error
+                # The file is still uploaded and accessible via URL
 
         return JSONResponse(
             status_code=200,
@@ -149,7 +155,8 @@ async def upload_pdf(
                 "filename": file.filename,
                 "file_id": file_id,
                 "size": file_size,
-                "clan_id": clan_id
+                "clan_id": clan_id,
+                "saved_to_database": clan_id is not None  # Confirm DB save
             }
         )
 
@@ -253,15 +260,20 @@ async def delete_pdf(
 
         # Remove URL from ClanRules if clan_id is provided
         if clan_id:
-            clan_rules = db.query(ClanRules).filter(
-                ClanRules.clan_id == clan_id
-            ).first()
-
-            if clan_rules:
-                clan_rules.rules_book_of_clan_pdf = None
-                db.commit()
-                logger.info(
-                    f"Removed PDF URL from ClanRules for clan {clan_id}")
+            try:
+                clan_rules = db.query(ClanRules).filter(
+                    ClanRules.clan_id == clan_id
+                ).first()
+                
+                if clan_rules:
+                    clan_rules.rules_book_of_clan_pdf = None
+                    db.commit()
+                    logger.info(f"✅ Removed PDF URL from ClanRules for clan {clan_id}")
+                else:
+                    logger.warning(f"⚠️ No ClanRules found for clan {clan_id} to remove PDF")
+            except Exception as db_error:
+                logger.error(f"❌ Database error removing PDF URL from ClanRules: {db_error}")
+                db.rollback()
 
         return JSONResponse(
             status_code=200,
@@ -286,10 +298,10 @@ async def delete_pdf(
 async def get_clan_rules_pdf(clan_id: int, db: Session = Depends(get_db)):
     """
     Get the PDF URL for a specific clan's rules
-
+    
     Args:
         clan_id: Clan ID
-
+        
     Returns:
         PDF URL if exists
     """
@@ -297,13 +309,13 @@ async def get_clan_rules_pdf(clan_id: int, db: Session = Depends(get_db)):
         clan_rules = db.query(ClanRules).filter(
             ClanRules.clan_id == clan_id
         ).first()
-
+        
         if not clan_rules or not clan_rules.rules_book_of_clan_pdf:
             raise HTTPException(
-                status_code=404,
+                status_code=404, 
                 detail="لا يوجد ملف PDF لقواعد هذه العشيرة"
             )
-
+        
         return JSONResponse(
             status_code=200,
             content={
@@ -312,7 +324,7 @@ async def get_clan_rules_pdf(clan_id: int, db: Session = Depends(get_db)):
                 "clan_id": clan_id
             }
         )
-
+        
     except HTTPException:
         raise
     except Exception as e:
@@ -352,6 +364,44 @@ async def check_storage():
             "max_file_size_mb": MAX_FILE_SIZE / (1024 * 1024)
         }
     except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e)
+        }
+
+
+@router.get("/api/debug/clan/{clan_id}/rules")
+async def debug_clan_rules(clan_id: int, db: Session = Depends(get_db)):
+    """
+    Debug endpoint: Check what's stored in ClanRules table for a specific clan
+    """
+    try:
+        clan_rules = db.query(ClanRules).filter(
+            ClanRules.clan_id == clan_id
+        ).first()
+        
+        if not clan_rules:
+            return {
+                "status": "not_found",
+                "message": f"No ClanRules entry found for clan_id={clan_id}",
+                "clan_id": clan_id
+            }
+        
+        return {
+            "status": "found",
+            "clan_rules": {
+                "id": clan_rules.id,
+                "clan_id": clan_rules.clan_id,
+                "general_rule": clan_rules.general_rule,
+                "groom_supplies": clan_rules.groom_supplies,
+                "rule_about_clothing": clan_rules.rule_about_clothing,
+                "rule_about_kitchenware": clan_rules.rule_about_kitchenware,
+                "rules_book_of_clan_pdf": clan_rules.rules_book_of_clan_pdf,
+                "pdf_exists": clan_rules.rules_book_of_clan_pdf is not None,
+            }
+        }
+    except Exception as e:
+        logger.error(f"Debug error: {e}")
         return {
             "status": "error",
             "error": str(e)
