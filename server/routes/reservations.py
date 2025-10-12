@@ -492,8 +492,6 @@ def get_settings_for_clan(db, clan_id):
 def list_clan_reservations(db: Session = Depends(get_db), current: User = Depends(get_current_user)):
     return db.query(Reservation).filter(
         Reservation.county_id == current.county_id,
-
-        Reservation.clan_id == current.clan_id,
         Reservation.status == ReservationStatus.pending_validation
 
     ).all()
@@ -505,7 +503,6 @@ def list_clan_reservations(db: Session = Depends(get_db), current: User = Depend
 def list_clan_reservations(db: Session = Depends(get_db), current: User = Depends(get_current_user)):
     return db.query(Reservation).filter(
         Reservation.county_id == current.county_id,
-        Reservation.clan_id == current.clan_id,
         Reservation.status == ReservationStatus.validated
 
     ).all()
@@ -516,7 +513,6 @@ def list_clan_reservations(db: Session = Depends(get_db), current: User = Depend
 def list_clan_reservations(db: Session = Depends(get_db), current: User = Depends(get_current_user)):
     return db.query(Reservation).filter(
         Reservation.county_id == current.county_id,
-        Reservation.clan_id == current.clan_id,
         Reservation.status == ReservationStatus.cancelled
 
     ).all()
