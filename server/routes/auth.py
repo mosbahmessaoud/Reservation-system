@@ -1,12 +1,13 @@
 
-#server\routes\auth.py
+# server\routes\auth.py
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 from platformdirs import user_config_dir
 from pydantic import BaseModel
 import sqlalchemy
-from sqlalchemy.orm import Session
+import sqlalchemy.orm
 from datetime import datetime, timedelta
-
+from sqlalchemy.orm import Session
+from sqlalchemy.orm import joinedload
 from server.models.user import User, UserRole, UserStatus
 from server.models.clan import Clan
 from server.models.county import County
@@ -47,19 +48,54 @@ def delet_user(phone__number: int, db: Session = Depends(get_db)):
     return {'message': f'تم حذف المستخدم صاحب رقم الهاتف {phone__number} بنجاح'}
 
 
-@router.get("/me", response_model=UserOut)
+@router.get("/me")
 def get_current_user_info(
     db: Session = Depends(get_db),
     current: User = Depends(auth_utils.get_current_user)
 ):
-    user_info = db.query(User).filter(User.id == current.id).first()
-    if not user_info:
+    user = db.query(User).options(
+        joinedload(User.clan),
+        joinedload(User.county)
+    ).filter(User.id == current.id).first()
+
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="المستخدم غير موجود"
         )
 
-    return user_info
+    user = {
+        "id": user.id,
+        "clan_id": user.clan_id,
+        "county_id": user.county_id,
+        "status": user.status,
+
+        "created_at": user.created_at.isoformat() if user.created_at else None,
+
+        # Joined data
+        "clan_name": user.clan.name if user.clan else None,
+        "county_name": user.county.name if user.county else None,
+
+
+        # Personal information
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "father_name": user.father_name,
+        "grandfather_name": user.grandfather_name,
+        "birth_date": str(user.birth_date) if user.birth_date else None,
+        "birth_address": user.birth_address,
+        "home_address": user.home_address,
+        "phone_number": user.phone_number,
+
+        # Guardian information
+        "guardian_name": user.guardian_name,
+        "guardian_phone": user.guardian_phone,
+        "guardian_home_address": user.guardian_home_address,
+        "guardian_birth_address": user.guardian_birth_address,
+        "guardian_birth_date": str(user.guardian_birth_date) if user.guardian_birth_date else None,
+    }
+
+    return user
 
 
 @router.post("/login", response_model=Token)
@@ -281,8 +317,6 @@ def get_otp_code(phone_number: str, db: Session = Depends(get_db)):
             status_code=404, detail="لا يوجد رمز تحقق لهذا المستخدم")
 
     return {"otp_code": user.otp_code}
-
-
 
 
 @router.post("/request-password-reset")

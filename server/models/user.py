@@ -58,7 +58,7 @@ class User(Base):
     county = relationship("County",
                           back_populates="users", lazy="select")
 
-    # Groom-specific fields
+    # Groom-specific fields  
     guardian_name = Column(String, nullable=True)
     guardian_phone = Column(String, nullable=True)
     guardian_relation = Column(String, nullable=True)
