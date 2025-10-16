@@ -433,7 +433,7 @@ def delete_clan_rules(
         )
 
 
-@router.put("reservations/payment_update/{groom_id}")
+@router.put("reservations/payment_update/{groom_id}", dependencies=[Depends(clan_admin_required)])
 def update_payment(groom_id: int, db: Session = Depends(get_db), current: User = Depends(clan_admin_required)):
     groom = db.query(User).filter(
         User.id == groom_id,
