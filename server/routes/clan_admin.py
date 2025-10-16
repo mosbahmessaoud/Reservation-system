@@ -36,7 +36,7 @@ clan_admin_required = require_role([UserRole.clan_admin])
 def get_clan_info(db: Session = Depends(get_db), current: User = Depends(get_current_user)):
     clan = db.query(Clan).filter(Clan.id == current.clan_id).first()
     if not clan:
-        raise HTTPException(status_code=404, detail="Clan not found")
+        raise HTTPException(status_code=404, detail="العشيرة غير موجودة")
     return clan
 # Grooms CRUD (view only those in own clan)
 
@@ -70,7 +70,7 @@ async def update_groom_status(
         if not groom:
             raise HTTPException(
                 status_code=404,
-                detail=f"Groom with phone number {phone_number} not found"
+                detail=f"العريس برقم الهاتف {phone_number} غير موجود"
             )
 
         # Map string status to enum
@@ -91,7 +91,7 @@ async def update_groom_status(
             f"Updated groom {phone_number} status from {old_status} to {new_status}")
 
         return {
-            "message": "Groom status updated successfully",
+            "message": "تم تحديث حالة العريس بنجاح",
             "phone_number": phone_number,
             "old_status": old_status.value,
             "new_status": new_status.value,
@@ -106,7 +106,7 @@ async def update_groom_status(
         logging.error(f"Error updating groom status: {str(e)}")
         raise HTTPException(
             status_code=500,
-            detail="Internal server error while updating groom status"
+            detail="خطأ داخلي في الخادم أثناء تحديث حالة العريس"
         )
 
 
@@ -135,7 +135,7 @@ async def get_groom_status(
         if not groom:
             raise HTTPException(
                 status_code=404,
-                detail=f"Groom with phone number {phone_number} not found"
+                detail=f"العريس برقم الهاتف {phone_number} غير موجود"
             )
 
         return {
@@ -152,7 +152,7 @@ async def get_groom_status(
         logging.error(f"Error getting groom status: {str(e)}")
         raise HTTPException(
             status_code=500,
-            detail="Internal server error while fetching groom status"
+            detail="خطأ داخلي في الخادم أثناء جلب حالة العريس"
         )
 ###
 
@@ -174,12 +174,12 @@ def list_grooms(db: Session = Depends(get_db), current: User = Depends(clan_admi
 #     ).first()
 #     if not groom:
 #         raise HTTPException(
-#             status_code=404, detail="Groom not found or not in your clan")
+#             status_code=404, detail="العريس غير موجود أو ليس في عشيرتك")
 
 
 #     db.delete(groom)
 #     db.commit()
-#     return {"message": f"groom with this phone number {groom_phone} has been deleted seccessfelly."}
+#     return {"message": f"تم حذف العريس برقم الهاتف {groom_phone} بنجاح."}
 
 
 @router.delete("/grooms_deleted/{groom_phone}", response_model=DeleteResponse, dependencies=[Depends(clan_admin_required)])
@@ -191,7 +191,7 @@ def get_deleted_groom(groom_phone: str, db: Session = Depends(get_db), current: 
     ).first()
     if not groom:
         raise HTTPException(
-            status_code=404, detail="Groom not found or not in your clan")
+            status_code=404, detail="العريس غير موجود أو ليس في عشيرتك")
 
     # Cancel all active reservations for this groom
     reservations = db.query(Reservation).filter(
@@ -206,7 +206,7 @@ def get_deleted_groom(groom_phone: str, db: Session = Depends(get_db), current: 
 
     db.delete(groom)
     db.commit()
-    return {"message": f"Groom with phone number {groom_phone} has been deleted successfully."}
+    return {"message": f"تم حذف العريس برقم الهاتف {groom_phone} بنجاح."}
 
 
 ########################## Halls CRUD  ##################################
@@ -219,7 +219,7 @@ def create_hall(hall: HallCreate, db: Session = Depends(get_db), current: User =
     # Ensure hall is for clan admin's clan
     if hall.clan_id != current.clan_id:
         raise HTTPException(
-            status_code=403, detail=f"you are admin of this clan id {current.clan_id} , but the id you enter {hall.clan_id} is not your clan id .")
+            status_code=403, detail=f"أنت مسؤول عن العشيرة ذات المعرف {current.clan_id}، لكن المعرف الذي أدخلته {hall.clan_id} ليس معرف عشيرتك.")
 
     obj = Hall(name=hall.name, capacity=hall.capacity, clan_id=hall.clan_id)
     exest_hall_check = db.query(Hall).filter(
@@ -227,7 +227,7 @@ def create_hall(hall: HallCreate, db: Session = Depends(get_db), current: User =
         Hall.name == obj.name
     ).first()
     if exest_hall_check:
-        raise HTTPException(status_code=400, detail="the hall alredy exist")
+        raise HTTPException(status_code=400, detail="القاعة موجودة بالفعل")
     db.add(obj)
     db.commit()
     db.refresh(obj)
@@ -258,14 +258,14 @@ def update_hall(
     if not existing_hall:
         raise HTTPException(
             status_code=404,
-            detail=f"Hall with id {id} does not exist or you don't have permission to update it."
+            detail=f"القاعة ذات المعرف {id} غير موجودة أو ليس لديك صلاحية لتحديثها."
         )
 
     # Ensure the updated hall is still for the clan admin's clan
     if hall_update.clan_id != current.clan_id:
         raise HTTPException(
             status_code=403,
-            detail=f"You are admin of clan id {current.clan_id}, but the id you entered {hall_update.clan_id} is not your clan id."
+            detail=f"أنت مسؤول عن العشيرة ذات المعرف {current.clan_id}، لكن المعرف الذي أدخلته {hall_update.clan_id} ليس معرف عشيرتك."
         )
 
     # Update the hall fields
@@ -281,7 +281,7 @@ def update_hall(
         db.rollback()
         raise HTTPException(
             status_code=500,
-            detail="An error occurred while updating the hall."
+            detail="حدث خطأ أثناء تحديث القاعة."
         )
 
 
@@ -294,11 +294,11 @@ def delete_a_hall(id: int, db: Session = Depends(get_db), current: User = Depend
     ).first()
     if not hall:
         raise HTTPException(
-            status_code=404, detail=f"hall with this id {id} dost exist .")
+            status_code=404, detail=f"القاعة ذات المعرف {id} غير موجودة.")
 
     db.delete(hall)
     db.commit()
-    return {"message": f"Hall with this id {id} has been deleted seccessfelly."}
+    return {"message": f"تم حذف القاعة ذات المعرف {id} بنجاح."}
 
 
 # ClanSettings CRUD (edit only own clan)
@@ -318,12 +318,12 @@ def get_settings(clan_id: int, db: Session = Depends(get_db)):
 @router.put("/settings/{clan__id}", response_model=ClanSettingsOut, dependencies=[Depends(clan_admin_required)])
 def update_settings(clan__id: int, settings: ClanSettingsUpdate, db: Session = Depends(get_db), current: User = Depends(clan_admin_required)):
     if clan__id != current.clan_id:
-        raise HTTPException(status_code=403, detail="Not your clan")
+        raise HTTPException(status_code=403, detail="ليست عشيرتك")
 
     obj = db.query(ClanSettings).filter(
         ClanSettings.clan_id == current.clan_id).first()
     if obj is None:
-        raise HTTPException(status_code=404, detail="Settings not found")
+        raise HTTPException(status_code=404, detail="الإعدادات غير موجودة")
 
     settings_up = [
         "max_grooms_per_date",
@@ -341,7 +341,7 @@ def update_settings(clan__id: int, settings: ClanSettingsUpdate, db: Session = D
     ]
 
     if not any(getattr(settings, field) is not None for field in settings_up):
-        raise HTTPException(status_code=400, detail="No fields to update")
+        raise HTTPException(status_code=400, detail="لا توجد حقول للتحديث")
 
     for field in settings_up:
         value = getattr(settings, field, None)
@@ -367,7 +367,7 @@ def create_clan_rules(
     if existing_rules:
         raise HTTPException(
             status_code=400,
-            detail="Rules already exist for this clan"
+            detail="القواعد موجودة بالفعل لهذه العشيرة"
         )
 
     return clan_rules_crud.create(db, rules_data)
@@ -383,7 +383,7 @@ def get_clan_rules_by_id(
     if not rules:
         raise HTTPException(
             status_code=404,
-            detail="Clan rules not found"
+            detail="قواعد العشيرة غير موجودة"
         )
     return rules
 
@@ -398,7 +398,7 @@ def get_clan_rules_by_clan_id(
     if not rules:
         raise HTTPException(
             status_code=404,
-            detail="No rules found for this clan"
+            detail="لم يتم العثور على قواعد لهذه العشيرة"
         )
     return rules
 
@@ -414,7 +414,7 @@ def update_clan_rules(
     if not updated_rules:
         raise HTTPException(
             status_code=404,
-            detail="Clan rules not found"
+            detail="قواعد العشيرة غير موجودة"
         )
     return updated_rules
 
@@ -429,5 +429,50 @@ def delete_clan_rules(
     if not success:
         raise HTTPException(
             status_code=404,
-            detail="Clan rules not found"
+            detail="قواعد العشيرة غير موجودة"
         )
+
+
+@router.put("reservations/payment_update/{groom_id}")
+def update_payment(groom_id: int, db: Session = Depends(get_db), current: User = Depends(clan_admin_required)):
+    groom = db.query(User).filter(
+        User.id == groom_id,
+        User.role == UserRole.groom,
+        User.clan_id == current.clan_id
+    ).first()
+    if not groom:
+        raise HTTPException(
+            status_code=404, detail="العريس غير موجود أو ليس في عشيرتك")
+
+    reservation_pending = db.query(Reservation).filter(
+        Reservation.county_id == current.county_id,
+        Reservation.clan_id == current.clan_id,
+        Reservation.groom_id == groom.id,
+        Reservation.status == ReservationStatus.pending_validation
+    ).first()
+    reservation_valid = db.query(Reservation).filter(
+        Reservation.county_id == current.county_id,
+        Reservation.clan_id == current.clan_id,
+        Reservation.groom_id == groom.id,
+        Reservation.status == ReservationStatus.validated
+    ).first()
+
+    if not reservation_pending and not reservation_valid:
+        raise HTTPException(
+            status_code=404, detail=f"لم يتم العثور على حجوزات معلقة أو مؤكدة لمعرف العريس {groom_id}")
+
+    if reservation_pending:
+        reservation_pending.status = ReservationStatus.validated
+        reservation_pending.payment_valid = True  # Mark payment as valid
+        db.add(reservation_pending)
+        db.commit()
+        return {"message": f"تم تحديث الحجز المعلق للعريس {groom_id} إلى مؤكد."}
+
+    if reservation_valid:
+        reservation_valid.status = ReservationStatus.validated
+        reservation_valid.payment_valid = False  # Mark payment as valid
+        db.add(reservation_valid)
+        db.commit()
+        return {"message": f"تم تحديث الحجز المؤكد للعريس {groom_id} إلى معلق."}
+
+    return {"message": "لم يتم اتخاذ أي إجراء."}

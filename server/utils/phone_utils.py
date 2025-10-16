@@ -74,12 +74,7 @@ def validate_algerian_number(phone: str) -> str:
     # Check if it's in the format +2130...
     elif phone.startswith("2130"):
         phone = "+213" + phone[4:]
-    # Check if it's missing country code
-    elif len(phone) == 9 and phone.startswith(('5', '6', '7')):
-        phone = "+213" + phone
-    # Check if it's in the format 00213...
-    elif phone.startswith("00213"):
-        phone = "+213" + phone[5:]
+
 
     # Validate the final format
     pattern = r"^\+213(5|6|7)[0-9]{8}$"

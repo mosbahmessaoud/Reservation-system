@@ -1,0 +1,479 @@
+# """
+# Clan Admin routes: CRUD grooms, halls, committees, clan settings.
+# """
+# import logging
+# from typing import List
+# from fastapi import APIRouter, Depends, HTTPException, Query
+# from httpx import delete
+# from sqlalchemy.orm import Session
+
+# from server.CRUD import clan_rules_crud
+# from server.models.reservation import Reservation, ReservationStatus
+# from server.schemas.clan import ClanOut
+# from server.schemas.clan_rules_schema import ClanRulesCreate, ClanRulesResponse, ClanRulesUpdate
+# from server.schemas.haia_committe import HaiaCreate, HaiaOut, HaiaUpdate
+# from server.schemas.madaih_committe import MadaihCreate, MadaihOut, MadaihUpdate
+# from ..auth_utils import get_current_user, get_db, require_role
+# from ..models.user import User, UserRole, UserStatus
+# from ..models.hall import Hall
+# from ..models.clan import Clan
+# from ..models.committee import HaiaCommittee, MadaehCommittee
+# from ..models.clan_settings import ClanSettings
+# from ..schemas.user import DeleteResponse, StatusUpdateRequest, UserCreate, UserOut
+# from ..schemas.hall import HallCreate, HallOut
+# # from ..schemas.madaih_committe import
+# from ..schemas.clan_settings import ClanSettingsCreate, ClanSettingsOut, ClanSettingsUpdate
+
+# router = APIRouter(
+#     prefix="/clan-admin",
+#     tags=["clan-admin"]
+# )
+
+# clan_admin_required = require_role([UserRole.clan_admin])
+
+
+# @router.get("/clan_info", response_model=ClanOut)
+# def get_clan_info(db: Session = Depends(get_db), current: User = Depends(get_current_user)):
+#     clan = db.query(Clan).filter(Clan.id == current.clan_id).first()
+#     if not clan:
+#         raise HTTPException(status_code=404, detail="Clan not found")
+#     return clan
+# # Grooms CRUD (view only those in own clan)
+
+# # Add this to your FastAPI router file (e.g., grooms.py or main.py)
+
+
+# @router.put("/grooms/{phone_number}/status")
+# async def update_groom_status(
+#     phone_number: str,
+#     status_request: StatusUpdateRequest,
+#     db: Session = Depends(get_db)
+# ):
+#     """
+#     Update groom account status (active/inactive)
+
+#     Args:
+#         phone_number: The groom's phone number (unique identifier)
+#         status_request: Contains the new status ("active" or "inactive")
+#         db: Database session
+
+#     Returns:
+#         Updated groom information
+#     """
+#     try:
+#         # Find the groom by phone number
+#         groom = db.query(User).filter(
+#             User.phone_number == phone_number,
+#             User.role == "groom"  # Ensure we're only updating grooms
+#         ).first()
+
+#         if not groom:
+#             raise HTTPException(
+#                 status_code=404,
+#                 detail=f"Groom with phone number {phone_number} not found"
+#             )
+
+#         # Map string status to enum
+#         if status_request.status == "active":
+#             new_status = UserStatus.active
+#         else:  # "inactive"
+#             new_status = UserStatus.inactive
+
+#         # Update the status
+#         old_status = groom.status
+#         groom.status = new_status
+
+#         # Commit the changes
+#         db.commit()
+#         db.refresh(groom)
+
+#         logging.info(
+#             f"Updated groom {phone_number} status from {old_status} to {new_status}")
+
+#         return {
+#             "message": "Groom status updated successfully",
+#             "phone_number": phone_number,
+#             "old_status": old_status.value,
+#             "new_status": new_status.value,
+#             "groom_name": f"{groom.first_name} {groom.last_name}",
+
+#         }
+
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         db.rollback()
+#         logging.error(f"Error updating groom status: {str(e)}")
+#         raise HTTPException(
+#             status_code=500,
+#             detail="Internal server error while updating groom status"
+#         )
+
+
+# # Optional: Get current status endpoint
+# @router.get("/grooms/{phone_number}/status")
+# async def get_groom_status(
+#     phone_number: str,
+#     db: Session = Depends(get_db)
+# ):
+#     """
+#     Get current status of a groom
+
+#     Args:
+#         phone_number: The groom's phone number
+#         db: Database session
+
+#     Returns:
+#         Current groom status information
+#     """
+#     try:
+#         groom = db.query(User).filter(
+#             User.phone_number == phone_number,
+#             User.role == "groom"
+#         ).first()
+
+#         if not groom:
+#             raise HTTPException(
+#                 status_code=404,
+#                 detail=f"Groom with phone number {phone_number} not found"
+#             )
+
+#         return {
+#             "phone_number": phone_number,
+#             "status": groom.status.value,
+#             "groom_name": f"{groom.first_name} {groom.last_name}",
+#             "created_at": groom.created_at,
+#             "is_active": groom.status == UserStatus.active
+#         }
+
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         logging.error(f"Error getting groom status: {str(e)}")
+#         raise HTTPException(
+#             status_code=500,
+#             detail="Internal server error while fetching groom status"
+#         )
+# ###
+
+
+# @router.get("/grooms", response_model=list[UserOut], dependencies=[Depends(clan_admin_required)])
+# def list_grooms(db: Session = Depends(get_db), current: User = Depends(clan_admin_required)):
+#     return db.query(User).filter(
+#         User.role == UserRole.groom,
+#         User.clan_id == current.clan_id
+#     ).all()
+
+
+# # @router.delete("/grooms_deleted/{groom_phone}", response_model=UserOut, dependencies=[Depends(clan_admin_required)])
+# # def get_deleted_groom(groom_phone: str, db: Session = Depends(get_db), current: User = Depends(clan_admin_required)):
+# #     groom = db.query(User).filter(
+# #         User.phone_number == groom_phone,
+# #         User.role == UserRole.groom,
+# #         User.clan_id == current.clan_id,
+# #     ).first()
+# #     if not groom:
+# #         raise HTTPException(
+# #             status_code=404, detail="Groom not found or not in your clan")
+
+
+# #     db.delete(groom)
+# #     db.commit()
+# #     return {"message": f"groom with this phone number {groom_phone} has been deleted seccessfelly."}
+
+
+# @router.delete("/grooms_deleted/{groom_phone}", response_model=DeleteResponse, dependencies=[Depends(clan_admin_required)])
+# def get_deleted_groom(groom_phone: str, db: Session = Depends(get_db), current: User = Depends(clan_admin_required)):
+#     groom = db.query(User).filter(
+#         User.phone_number == groom_phone,
+#         User.role == UserRole.groom,
+#         User.clan_id == current.clan_id,
+#     ).first()
+#     if not groom:
+#         raise HTTPException(
+#             status_code=404, detail="Groom not found or not in your clan")
+
+#     # Cancel all active reservations for this groom
+#     reservations = db.query(Reservation).filter(
+#         Reservation.county_id == current.county_id,
+#         Reservation.groom_id == groom.id,
+#         Reservation.status != ReservationStatus.cancelled
+#     ).all()
+
+#     if reservations:
+#         for reservation in reservations:
+#             reservation.status = ReservationStatus.cancelled
+
+#     db.delete(groom)
+#     db.commit()
+#     return {"message": f"Groom with phone number {groom_phone} has been deleted successfully."}
+
+
+# ########################## Halls CRUD  ##################################
+# # arived here
+
+
+# # post new hall
+# @router.post("/halls", response_model=HallOut, dependencies=[Depends(clan_admin_required)])
+# def create_hall(hall: HallCreate, db: Session = Depends(get_db), current: User = Depends(clan_admin_required)):
+#     # Ensure hall is for clan admin's clan
+#     if hall.clan_id != current.clan_id:
+#         raise HTTPException(
+#             status_code=403, detail=f"you are admin of this clan id {current.clan_id} , but the id you enter {hall.clan_id} is not your clan id .")
+
+#     obj = Hall(name=hall.name, capacity=hall.capacity, clan_id=hall.clan_id)
+#     exest_hall_check = db.query(Hall).filter(
+#         Hall.clan_id == obj.clan_id,
+#         Hall.name == obj.name
+#     ).first()
+#     if exest_hall_check:
+#         raise HTTPException(status_code=400, detail="the hall alredy exist")
+#     db.add(obj)
+#     db.commit()
+#     db.refresh(obj)
+#     return obj
+# # get all halls
+
+
+# @router.get("/halls", response_model=list[HallOut])
+# def list_halls(db: Session = Depends(get_db), current: User = Depends(get_current_user)):
+#     return db.query(Hall).filter(Hall.clan_id == current.clan_id).all()
+
+
+# # update a hall by id
+
+# @router.put("/hall/{id}", response_model=HallOut, dependencies=[Depends(clan_admin_required)])
+# def update_hall(
+#     id: int,
+#     hall_update: HallCreate,
+#     db: Session = Depends(get_db),
+#     current: User = Depends(clan_admin_required)
+# ):
+#     # Get the existing hall
+#     existing_hall = db.query(Hall).filter(
+#         Hall.id == id,
+#         Hall.clan_id == current.clan_id
+#     ).first()
+
+#     if not existing_hall:
+#         raise HTTPException(
+#             status_code=404,
+#             detail=f"Hall with id {id} does not exist or you don't have permission to update it."
+#         )
+
+#     # Ensure the updated hall is still for the clan admin's clan
+#     if hall_update.clan_id != current.clan_id:
+#         raise HTTPException(
+#             status_code=403,
+#             detail=f"You are admin of clan id {current.clan_id}, but the id you entered {hall_update.clan_id} is not your clan id."
+#         )
+
+#     # Update the hall fields
+#     existing_hall.name = hall_update.name
+#     existing_hall.capacity = hall_update.capacity
+#     existing_hall.clan_id = hall_update.clan_id
+
+#     try:
+#         db.commit()
+#         db.refresh(existing_hall)
+#         return existing_hall
+#     except Exception as e:
+#         db.rollback()
+#         raise HTTPException(
+#             status_code=500,
+#             detail="An error occurred while updating the hall."
+#         )
+
+
+# # delet a hall by id
+# @router.delete("/hall/{id}", dependencies=[Depends(clan_admin_required)])
+# def delete_a_hall(id: int, db: Session = Depends(get_db), current: User = Depends(clan_admin_required)):
+#     hall = db.query(Hall).filter(
+#         Hall.id == id,
+#         Hall.clan_id == current.clan_id
+#     ).first()
+#     if not hall:
+#         raise HTTPException(
+#             status_code=404, detail=f"hall with this id {id} dost exist .")
+
+#     db.delete(hall)
+#     db.commit()
+#     return {"message": f"Hall with this id {id} has been deleted seccessfelly."}
+
+
+# # ClanSettings CRUD (edit only own clan)
+
+
+# @router.get("/settings", response_model=ClanSettingsOut, dependencies=[Depends(get_current_user)])
+# def get_settings(db: Session = Depends(get_db), current: User = Depends(get_current_user)):
+#     return db.query(ClanSettings).filter(ClanSettings.clan_id == current.clan_id).first()
+
+
+# @router.get("/setings/{clan_id}", response_model=ClanSettingsOut, dependencies=[Depends(get_current_user)])
+# def get_settings(clan_id: int, db: Session = Depends(get_db)):
+
+#     return db.query(ClanSettings).filter(ClanSettings.clan_id == clan_id).first()
+
+
+# @router.put("/settings/{clan__id}", response_model=ClanSettingsOut, dependencies=[Depends(clan_admin_required)])
+# def update_settings(clan__id: int, settings: ClanSettingsUpdate, db: Session = Depends(get_db), current: User = Depends(clan_admin_required)):
+#     if clan__id != current.clan_id:
+#         raise HTTPException(status_code=403, detail="Not your clan")
+
+#     obj = db.query(ClanSettings).filter(
+#         ClanSettings.clan_id == current.clan_id).first()
+#     if obj is None:
+#         raise HTTPException(status_code=404, detail="Settings not found")
+
+#     settings_up = [
+#         "max_grooms_per_date",
+#         "years_max_reserv_GrooomFromOriginClan",
+#         "years_max_reserv_GroomFromOutClan",
+#         "allow_two_day_reservations",
+#         "validation_deadline_days",
+#         "allowed_months_single_day",
+#         "allowed_months_two_day",
+#         "calendar_years_ahead",
+#         "accept_invites_times",
+#         "days_to_accept_invites",
+#         "allow_cross_clan_reservations"
+
+#     ]
+
+#     if not any(getattr(settings, field) is not None for field in settings_up):
+#         raise HTTPException(status_code=400, detail="No fields to update")
+
+#     for field in settings_up:
+#         value = getattr(settings, field, None)
+#         if value is not None:
+#             setattr(obj, field, value)
+
+#     db.commit()
+#     db.refresh(obj)
+#     return obj
+
+
+# ### clan rules ################
+
+
+# @router.post("/clan-rules", status_code=200, response_model=ClanRulesResponse, dependencies=[Depends(clan_admin_required)])
+# def create_clan_rules(
+#     rules_data: ClanRulesCreate,
+#     db: Session = Depends(get_db)
+# ):
+#     """Create new clan rules (Admin only)"""
+#     # Check if rules already exist for this clan
+#     existing_rules = clan_rules_crud.get_by_clan_id(db, rules_data.clan_id)
+#     if existing_rules:
+#         raise HTTPException(
+#             status_code=400,
+#             detail="Rules already exist for this clan"
+#         )
+
+#     return clan_rules_crud.create(db, rules_data)
+
+
+# @router.get("/clan-rules/{rule_id}", response_model=ClanRulesResponse, dependencies=[Depends(clan_admin_required)])
+# def get_clan_rules_by_id(
+#     rule_id: int,
+#     db: Session = Depends(get_db)
+# ):
+#     """Get clan rules by ID (Admin only)"""
+#     rules = clan_rules_crud.get_by_id(db, rule_id)
+#     if not rules:
+#         raise HTTPException(
+#             status_code=404,
+#             detail="Clan rules not found"
+#         )
+#     return rules
+
+
+# @router.get("/clan-rules/clan/{clan_id}", response_model=ClanRulesResponse, dependencies=[Depends(clan_admin_required)])
+# def get_clan_rules_by_clan_id(
+#     clan_id: int,
+#     db: Session = Depends(get_db)
+# ):
+#     """Get clan rules by clan ID (Admin only)"""
+#     rules = clan_rules_crud.get_by_clan_id(db, clan_id)
+#     if not rules:
+#         raise HTTPException(
+#             status_code=404,
+#             detail="No rules found for this clan"
+#         )
+#     return rules
+
+
+# @router.put("/clan-rules/{rule_id}", response_model=ClanRulesResponse)
+# def update_clan_rules(
+#     rule_id: int,
+#     rules_data: ClanRulesUpdate,
+#     db: Session = Depends(get_db)
+# ):
+#     """Update clan rules (Admin only)"""
+#     updated_rules = clan_rules_crud.update(db, rule_id, rules_data)
+#     if not updated_rules:
+#         raise HTTPException(
+#             status_code=404,
+#             detail="Clan rules not found"
+#         )
+#     return updated_rules
+
+
+# @router.delete("/clan-rules/{rule_id}", status_code=204)
+# def delete_clan_rules(
+#     rule_id: int,
+#     db: Session = Depends(get_db)
+# ):
+#     """Delete clan rules (Admin only)"""
+#     success = clan_rules_crud.delete(db, rule_id)
+#     if not success:
+#         raise HTTPException(
+#             status_code=404,
+#             detail="Clan rules not found"
+#         )
+
+
+# @router.put("reservations/payment_update/{groom_id}")
+# def update_payment(groom_id:int , db: Session = Depends(get_db), current: User = Depends(clan_admin_required)):
+#     groom = db.query(User).filter(
+#         User.id == groom_id,
+#         User.role == UserRole.groom,
+#         User.clan_id == current.clan_id
+#     ).first()
+#     if not groom:
+#         raise HTTPException(
+#             status_code=404, detail="Groom not found or not in your clan")
+
+#     reservation_pending = db.query(Reservation).filter(
+#         Reservation.county_id == current.county_id,
+#         Reservation.clan_id == current.clan_id,
+#         Reservation.groom_id == groom.id,
+#         Reservation.status == ReservationStatus.pending_validation
+#     ).first()
+#     reservation_valid = db.query(Reservation).filter(
+#         Reservation.county_id == current.county_id,
+#         Reservation.clan_id == current.clan_id,
+#         Reservation.groom_id == groom.id,
+#         Reservation.status == ReservationStatus.validated
+#     ).first()
+
+
+#     if not reservation_pending and not reservation_valid:
+#         raise HTTPException(
+#             status_code=404, detail="No pending or validate reservations found for this groomID {groom_id}")
+    
+#     if reservation_pending:
+#         reservation_pending.status = ReservationStatus.validated
+#         reservation_pending.payment_valid = True  # Mark payment as valid
+#         db.add(reservation_pending)
+#         db.commit()
+#         return {"message": f"the pending reservation for groom {groom_id} have been updated to confirmed."}
+
+#     if reservation_valid:
+#         reservation_valid.status = ReservationStatus.validated
+#         reservation_valid.payment_valid = False  # Mark payment as valid
+#         db.add(reservation_valid)
+#         db.commit()
+#         return {"message": f"the Validate reservation for groom {groom_id} have been updated to pending."}
+
+#     return {"message": "No action taken."}
