@@ -1,6 +1,7 @@
 """
 Alembic environment configuration
 """
+from server.models.reservation_clan_admin import ReservationSpecial, ReservationSpecialStatus
 from server.models.reservation import Reservation, ReservationStatus
 from server.models.committee import HaiaCommittee, MadaehCommittee
 from server.models.food import FoodMenu
@@ -23,7 +24,6 @@ from alembic import context
 
 # Add parent directory to path to import server modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-
 
 # Load environment variables
 load_dotenv()
