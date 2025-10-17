@@ -1,4 +1,4 @@
-#server\utils\otp_utils.py
+# server\utils\otp_utils.py
 import random
 from twilio.rest import Client
 import os
