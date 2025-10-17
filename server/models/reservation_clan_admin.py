@@ -31,6 +31,7 @@ class ReservationSpecial(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
-    clan = relationship("Clan", back_populates="reservations", lazy="select")
+    clan = relationship(
+        "Clan", back_populates="reservations_special", lazy="select")
     county = relationship(
-        "County", back_populates="reservations", lazy="select")
+        "County", back_populates="reservations_special", lazy="select")

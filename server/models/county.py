@@ -22,4 +22,7 @@ class County(Base):
         "HaiaCommittee", back_populates="county", cascade="all, delete")
     madaeh_committees = relationship(
         "MadaehCommittee", back_populates="county", cascade="all, delete")
-    reservations = relationship("Reservation", back_populates="county", lazy="select")
+    reservations = relationship(
+        "Reservation", back_populates="county", lazy="select")
+    reservations_special = relationship(
+        "ReservationSpecial", back_populates="county", lazy="select")

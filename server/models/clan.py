@@ -30,3 +30,5 @@ class Clan(Base):
                             uselist=False, cascade="all, delete-orphan", passive_deletes=True, lazy="select")
     reservations = relationship(
         "Reservation", back_populates="clan", lazy="select")
+    reservations_special = relationship(
+        "ReservationSpecial", back_populates="clan", lazy="select")
