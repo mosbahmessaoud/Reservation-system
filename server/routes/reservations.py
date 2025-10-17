@@ -384,43 +384,6 @@ def create_reservation(resv_in: ReservationCreate, db: Session = Depends(get_db)
         else:
             clan = db.query(Clan).filter(Clan.id == current.clan_id).first()
 
-        # # Create reservation with all validations passed
-        # resv = Reservation(
-        #     groom_id=current.id,
-        #     clan_id=resv_in.clan_id,
-        #     date1=date1,
-        #     date2=date2,
-        #     date2_bool=bool(resv_in.date2_bool),
-        #     join_to_mass_wedding=bool(
-        #         resv_in.join_to_mass_wedding or resv_in.allow_others),
-        #     allow_others=bool(
-        #         resv_in.join_to_mass_wedding or resv_in.allow_others),
-        #     status=ReservationStatus.pending_validation,
-        #     payment_valid=False,
-        #     created_at=datetime.utcnow(),
-        #     hall_id=hall.id,
-        #     haia_committee_id=resv_in.haia_committee_id,
-        #     madaeh_committee_id=resv_in.madaeh_committee_id,
-        #     county_id=clan.county_id,
-
-        #     # Personal information
-        #     first_name=groom.first_name,
-        #     last_name=groom.last_name,
-        #     father_name=groom.father_name,
-        #     grandfather_name=groom.grandfather_name,
-        #     birth_date=groom.birth_date,
-        #     birth_address=groom.birth_address,
-        #     home_address=groom.home_address,
-        #     phone_number=groom.phone_number,
-
-        #     # Guardian information
-        #     guardian_name=groom.guardian_name,
-        #     guardian_home_address=groom.guardian_home_address,
-        #     guardian_birth_address=groom.guardian_birth_address,
-        #     guardian_birth_date=groom.guardian_birth_date,
-        #     guardian_phone=groom.guardian_phone
-        # )
-
         # Create reservation with all validations passed
         resv = Reservation(
             groom_id=current.id,

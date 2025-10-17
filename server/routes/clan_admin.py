@@ -1,18 +1,24 @@
 """
 Clan Admin routes: CRUD grooms, halls, committees, clan settings.
 """
+import datetime
 import logging
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query
 from httpx import delete
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from server.CRUD import clan_rules_crud
 from server.models.reservation import Reservation, ReservationStatus
+from server.models.reservation_clan_admin import ReservationSpecial, ReservationSpecialStatus
 from server.schemas.clan import ClanOut
 from server.schemas.clan_rules_schema import ClanRulesCreate, ClanRulesResponse, ClanRulesUpdate
 from server.schemas.haia_committe import HaiaCreate, HaiaOut, HaiaUpdate
 from server.schemas.madaih_committe import MadaihCreate, MadaihOut, MadaihUpdate
+from server.routes.reservations import create_reservation
+from server.schemas.reservation import ReservationCreate
+from server.schemas.reservations_special import ReservationSpecialCreate
 from ..auth_utils import get_current_user, get_db, require_role
 from ..models.user import User, UserRole, UserStatus
 from ..models.hall import Hall
@@ -432,8 +438,10 @@ def delete_clan_rules(
             detail="قواعد العشيرة غير موجودة"
         )
 
+################ change payment status ###############
 
-@router.put("reservations/payment_update/{groom_id}", dependencies=[Depends(clan_admin_required)])
+
+@router.put("/reservations/payment_update/{groom_id}", dependencies=[Depends(clan_admin_required)])
 def update_payment(groom_id: int, db: Session = Depends(get_db), current: User = Depends(clan_admin_required)):
     groom = db.query(User).filter(
         User.id == groom_id,
@@ -476,3 +484,116 @@ def update_payment(groom_id: int, db: Session = Depends(get_db), current: User =
         return {"message": f"تم تحديث الحجز المؤكد للعريس {groom_id} إلى معلق."}
 
     return {"message": "لم يتم اتخاذ أي إجراء."}
+
+
+################# clan manage a special reservation ################################
+
+@router.post("/reserv_some_dates", dependencies=[Depends(clan_admin_required)])
+def reserv_some_dates(
+    reservation_create: ReservationSpecialCreate,
+    db: Session = Depends(get_db),
+    current: User = Depends(clan_admin_required)
+):
+
+    # Get admin's clan
+    admin_clan = db.query(Clan).filter(Clan.id == current.clan_id).first()
+    if not admin_clan:
+        raise HTTPException(404, "العشيرة غير موجودة")
+
+        # Check if there's already a special reservation for this date
+    existing_special = db.query(ReservationSpecial).filter(
+        ReservationSpecial.clan_id == current.clan_id,
+        ReservationSpecial.county_id == current.county_id,
+        ReservationSpecial.date == reservation_create.date,
+        ReservationSpecial.status != ReservationSpecialStatus.cancelled
+    ).first()
+
+    if existing_special:
+        raise HTTPException(400, "يوجد حجز خاص مسبق لهذا التاريخ")
+
+    reservation = db.query(Reservation).filter(
+        Reservation.county_id == current.county_id,
+        Reservation.clan_id == current.clan_id,
+        or_(Reservation.date1 == reservation_create.date,
+            Reservation.date2 == reservation_create.date,),
+        Reservation.status != ReservationStatus.cancelled
+    ).first()
+
+    if reservation:
+        raise HTTPException(
+            status_code=400, detail=f"التاريخ {reservation_create.date} محجوز بالفعل.")
+
+    new_reservation = ReservationSpecial(
+        clan_id=current.clan_id,
+        county_id=current.county_id,
+        reserv_name=reservation_create.reserv_name,
+        reserv_desctiption=reservation_create.reserv_desctiption,
+        date=reservation_create.date,
+        status=ReservationSpecialStatus.validated,
+        created_at=datetime.utcnow()
+    )
+
+    db.add(new_reservation)
+    db.commit()
+    db.refresh(new_reservation)
+
+    return new_reservation
+
+
+@router.get("/special_reservrations", response_model=List[ReservationSpecial], dependencies=[Depends(clan_admin_required)])
+def get_all_special_reservations(
+    db: Session = Depends(get_db),
+    current: User = Depends(clan_admin_required)
+):
+    special_reserv = db.query(ReservationSpecial).filter(
+        ReservationSpecial.clan_id == current.clan_id,
+        ReservationSpecial.county_id == current.county_id
+    ).all()
+
+    return special_reserv
+
+
+@router.put("/update_status_special_reserv/{reserv_id}", dependencies=[Depends(clan_admin_required)])
+def update_status_special_reservation(
+    reserv_id: int,
+    db: Session = Depends(get_db),
+    current: User = Depends(clan_admin_required)
+):
+    reserv = db.query(ReservationSpecial).filter(
+        ReservationSpecial.id == reserv_id,
+        ReservationSpecial.clan_id == current.clan_id,
+        ReservationSpecial.county_id == current.county_id
+
+    ).first()
+    if not reserv:
+        raise HTTPException(status_code=404, detail="الحجز الخاص غير موجود")
+
+    if reserv.status == ReservationSpecialStatus.validated:
+        reserv.status = ReservationSpecialStatus.cancelled
+    else:
+        reserv.status = ReservationSpecialStatus.validated
+
+    db.add(reserv)
+    db.commit()
+    db.refresh(reserv)
+    return {"message": "تم تفعيل الحجز الخاص بنجاح." if reserv.status == ReservationSpecialStatus.validated else "تم إلغاء الحجز الخاص بنجاح."}
+
+
+# @router.delete("/special_reserv/{reserv_id}", dependencies=[Depends(clan_admin_required)])
+# def delete_special_reservation(
+#     reserv_id: int,
+#     db: Session = Depends(get_db),
+#     current: User = Depends(clan_admin_required)
+# ):
+#     reserv = db.query(ReservationSpecial).filter(
+#         ReservationSpecial.id == reserv_id,
+#         ReservationSpecial.clan_id == current.clan_id,
+#         ReservationSpecial.county_id == current.county_id
+#     ).first()
+
+#     if not reserv:
+#         raise HTTPException(status_code=404, detail="الحجز الخاص غير موجود")
+
+#     db.delete(reserv)
+#     db.commit()
+#     return {"message": f"تم حذف الحجز الخاص ذو المعرف {reserv_id} بنجاح."}
