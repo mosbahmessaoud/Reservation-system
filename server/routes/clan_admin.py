@@ -18,7 +18,7 @@ from server.schemas.haia_committe import HaiaCreate, HaiaOut, HaiaUpdate
 from server.schemas.madaih_committe import MadaihCreate, MadaihOut, MadaihUpdate
 from server.routes.reservations import create_reservation
 from server.schemas.reservation import ReservationCreate
-from server.schemas.reservations_special import ReservationSpecialCreate
+from server.schemas.reservations_special import ReservationSpecialCreate, ReservationSpecialOut
 from ..auth_utils import get_current_user, get_db, require_role
 from ..models.user import User, UserRole, UserStatus
 from ..models.hall import Hall
@@ -540,7 +540,7 @@ def reserv_some_dates(
     return new_reservation
 
 
-@router.get("/special_reservrations", response_model=List[ReservationSpecial], dependencies=[Depends(clan_admin_required)])
+@router.get("/special_reservrations", response_model=List[ReservationSpecialOut], dependencies=[Depends(clan_admin_required)])
 def get_all_special_reservations(
     db: Session = Depends(get_db),
     current: User = Depends(clan_admin_required)

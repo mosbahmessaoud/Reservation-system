@@ -20,7 +20,7 @@ class ReservationSpecialCreate(ReservationSpecialBase):
 class ReservationSpecialOut(BaseModel):
     id: int
     clan_id: int
-    county_id: int
+    county_id: int  
     reserv_name: str
     reserv_desctiption: Optional[str] = None
     date: date
