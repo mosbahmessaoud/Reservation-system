@@ -583,8 +583,6 @@ def cancel_a_groom_reservation(groom_id: int, db: Session = Depends(get_db), cur
 def cancel_a_groom_reservation(reservation_id: int, db: Session = Depends(get_db), current: User = Depends(clan_admin_required)):
 
     resv = db.query(Reservation).filter(
-        Reservation.county_id == current.county_id,
-        Reservation.clan_id == current.clan_id,
         Reservation.id == reservation_id,
         Reservation.status != ReservationStatus.cancelled
     ).first()
