@@ -1,7 +1,7 @@
 """
 Clan Admin routes: CRUD grooms, halls, committees, clan settings.
 """
-import datetime
+from datetime import datetime
 import logging
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query
