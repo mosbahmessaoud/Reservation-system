@@ -478,6 +478,19 @@ def cancel_a_groom_reservation(reservation_id: int, db: Session = Depends(get_db
         }
     }
 
+###########
+# get all special reservations
+
+
+@router.get("/special_reservations", response_model=List[ReservationSpecialOut])
+def get_special_reservations(db: Session = Depends(get_db), current: User = Depends(get_current_user)):
+    special_reservations = db.query(ReservationSpecial).filter(
+        ReservationSpecial.county_id == current.county_id
+    ).all()
+    return special_reservations
+
+#############
+
 
 @router.put("/reservations/payment_update/{groom_id}", dependencies=[Depends(clan_admin_required)])
 def update_payment(groom_id: int, db: Session = Depends(get_db), current: User = Depends(clan_admin_required)):
@@ -550,7 +563,6 @@ def reserv_some_dates(
 
     reservation = db.query(Reservation).filter(
         Reservation.county_id == current.county_id,
-        Reservation.clan_id == current.clan_id,
         or_(Reservation.date1 == reservation_create.date,
             Reservation.date2 == reservation_create.date,),
         Reservation.status != ReservationStatus.cancelled
