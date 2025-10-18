@@ -1,4 +1,4 @@
-# server\models\reservation.py
+# server\models\reservation_clan_admin.py
 """
 Reservation model: Each reservation is for a groom, in a clan, for 1 or 2 consecutive days.
 """
