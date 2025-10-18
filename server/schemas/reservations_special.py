@@ -4,7 +4,10 @@ from datetime import date, datetime
 from typing import Optional
 from enum import Enum
 
-from server.models.reservation_clan_admin import ReservationSpecialStatus
+
+class ReservationSpecialStatus(str, Enum):
+    validated = "validated"
+    cancelled = "cancelled"
 
 
 class ReservationSpecialBase(BaseModel):
