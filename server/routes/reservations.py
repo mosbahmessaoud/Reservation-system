@@ -576,43 +576,6 @@ def cancel_a_groom_reservation(groom_id: int, db: Session = Depends(get_db), cur
     }
 
 
-# a clan admin change the payment status
-
-
-@router.post("/{reservation_id}/change_payment_status", response_model=dict, dependencies=[Depends(clan_admin_required)])
-def cancel_a_groom_reservation(reservation_id: int, db: Session = Depends(get_db), current: User = Depends(clan_admin_required)):
-
-    resv = db.query(Reservation).filter(
-        Reservation.id == reservation_id,
-        Reservation.status != ReservationStatus.cancelled
-    ).first()
-    if not resv:
-        raise HTTPException(
-            status_code=404, detail=f"لا يوجد حجز معلق أو مصدق عليه   ")
-
-    # Store previous status before toggling
-    previous_status = resv.payment_valid
-
-    # Toggle payment status
-    resv.payment_valid = not resv.payment_valid
-
-    db.commit()
-    db.refresh(resv)
-
-    # Create appropriate message based on new status
-    status_message = "تم تأكيد دفع العريس بنجاح" if resv.payment_valid else "تم إلغاء تأكيد دفع العريس"
-
-    return {
-        "message": status_message,
-        "reservation": {
-            "id": resv.id,
-            "groom_id": resv.groom_id,
-            "payment_valid": resv.payment_valid,
-            "previous_payment_status": previous_status,
-            "status": resv.status.value
-        }
-    }
-
 
 @router.delete("/delete_res/{reservation_id}", response_model=dict, dependencies=[Depends(get_current_user)])
 def delete_reservation(reservation_id: int, db: Session = Depends(get_db)):
