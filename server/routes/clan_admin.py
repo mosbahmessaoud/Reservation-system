@@ -570,7 +570,7 @@ def reserv_some_dates(
 
     if reservation:
         raise HTTPException(
-            status_code=400, detail=f"التاريخ {reservation_create.date} محجوز بالفعل.")
+            status_code=400, detail=f"التاريخ محجوز بالفعل لعرس .")
 
     new_reservation = ReservationSpecial(
         clan_id=current.clan_id,
@@ -610,12 +610,22 @@ def update_status_special_reservation(
 ):
     reserv = db.query(ReservationSpecial).filter(
         ReservationSpecial.id == reserv_id,
-        ReservationSpecial.clan_id == current.clan_id,
         ReservationSpecial.county_id == current.county_id
 
     ).first()
     if not reserv:
         raise HTTPException(status_code=404, detail="الحجز الخاص غير موجود")
+
+    reservation = db.query(Reservation).filter(
+        Reservation.county_id == current.county_id,
+        or_(Reservation.date1 == reserv.date,
+            Reservation.date2 == reserv.date,),
+        Reservation.status != ReservationStatus.cancelled
+    ).first()
+
+    if reservation:
+        raise HTTPException(
+            status_code=400, detail=f"التاريخ محجوز بالفعل لعرس .")
 
     if reserv.status == ReservationSpecialStatus.validated:
         reserv.status = ReservationSpecialStatus.cancelled
