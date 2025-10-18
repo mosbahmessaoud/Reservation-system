@@ -446,7 +446,6 @@ def update_payment(groom_id: int, db: Session = Depends(get_db), current: User =
     groom = db.query(User).filter(
         User.id == groom_id,
         User.role == UserRole.groom,
-        User.clan_id == current.clan_id
     ).first()
     if not groom:
         raise HTTPException(
