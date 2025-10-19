@@ -1,5 +1,6 @@
 
 # server\routes\auth.py
+from tokenize import String
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 from platformdirs import user_config_dir
 from pydantic import BaseModel
@@ -40,7 +41,7 @@ def get_user_role(
 
 
 @router.delete("/delet_user/{phone__number}")
-def delet_user(phone__number: int, db: Session = Depends(get_db)):
+def delet_user(phone__number: str, db: Session = Depends(get_db)):
     user = db.query(User).filter(
         User.phone_number == phone__number
     ).first()
