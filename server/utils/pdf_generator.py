@@ -48,9 +48,9 @@ def fill_docx_template(template_path: str, output_path: str, context: dict):
                             replace_placeholder_in_runs(p.runs, key, value)
 
         doc.save(output_path)
-        logger.info(f"Successfully filled DOCX template: {output_path}")
+        logger.info(f"تم ملء قالب DOCX بنجاح: {output_path}")
     except Exception as e:
-        logger.error(f"Error filling DOCX template: {e}")
+        logger.error(f"خطأ في ملء قالب DOCX: {e}")
         raise
 
 
@@ -70,7 +70,7 @@ def find_libreoffice():
             result = subprocess.run([path, "--version"],
                                     capture_output=True, text=True, timeout=10)
             if result.returncode == 0:
-                logger.info(f"Found LibreOffice at: {path}")
+                logger.info(f"تم العثور على LibreOffice في: {path}")
                 return path
         except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
             continue
@@ -86,14 +86,15 @@ def convert_to_pdf(docx_path: str, pdf_path: str):
     # Ensure output directory exists
     pdf_path.parent.mkdir(parents=True, exist_ok=True)
 
-    logger.info(f"Converting DOCX to PDF...")
-    logger.info(f"  Input: {docx_path}")
-    logger.info(f"  Output: {pdf_path}")
+    logger.info(f"جارٍ تحويل DOCX إلى PDF...")
+    logger.info(f"  المدخل: {docx_path}")
+    logger.info(f"  المخرج: {pdf_path}")
 
     # Find LibreOffice
     libreoffice_path = find_libreoffice()
     if not libreoffice_path:
-        raise Exception("LibreOffice not found. Please install LibreOffice.")
+        raise Exception(
+            "لم يتم العثور على LibreOffice. الرجاء تثبيت LibreOffice.")
 
     try:
         # Use LibreOffice to convert
@@ -106,7 +107,7 @@ def convert_to_pdf(docx_path: str, pdf_path: str):
             str(docx_path)
         ]
 
-        logger.info(f"Running command: {' '.join(cmd)}")
+        logger.info(f"تنفيذ الأمر: {' '.join(cmd)}")
 
         result = subprocess.run(
             cmd,
@@ -117,20 +118,20 @@ def convert_to_pdf(docx_path: str, pdf_path: str):
 
         # Log the output for debugging
         if result.stdout:
-            logger.info(f"LibreOffice stdout: {result.stdout}")
+            logger.info(f"مخرجات LibreOffice: {result.stdout}")
         if result.stderr:
-            logger.warning(f"LibreOffice stderr: {result.stderr}")
+            logger.warning(f"تحذيرات LibreOffice: {result.stderr}")
 
         # LibreOffice creates the PDF with the same base name as the DOCX
         expected_pdf = pdf_path.parent / f"{docx_path.stem}.pdf"
 
-        logger.info(f"Expected PDF location: {expected_pdf}")
-        logger.info(f"Target PDF location: {pdf_path}")
+        logger.info(f"موقع PDF المتوقع: {expected_pdf}")
+        logger.info(f"موقع PDF المستهدف: {pdf_path}")
 
         # Check if conversion was successful
         if result.returncode != 0:
-            error_msg = result.stderr or result.stdout or "Unknown error"
-            raise Exception(f"LibreOffice conversion failed: {error_msg}")
+            error_msg = result.stderr or result.stdout or "خطأ غير معروف"
+            raise Exception(f"فشل تحويل LibreOffice: {error_msg}")
 
         # Wait a moment for file system to sync
         import time
@@ -141,23 +142,23 @@ def convert_to_pdf(docx_path: str, pdf_path: str):
             if expected_pdf.exists():
                 import shutil
                 shutil.move(str(expected_pdf), str(pdf_path))
-                logger.info(f"Moved PDF from {expected_pdf} to {pdf_path}")
+                logger.info(f"تم نقل PDF من {expected_pdf} إلى {pdf_path}")
             else:
                 raise Exception(
-                    f"PDF was not created at expected location: {expected_pdf}")
+                    f"لم يتم إنشاء PDF في الموقع المتوقع: {expected_pdf}")
 
         # Final verification
         if not pdf_path.exists():
-            raise Exception(f"PDF file was not created at: {pdf_path}")
+            raise Exception(f"لم يتم إنشاء ملف PDF في: {pdf_path}")
 
-        logger.info(f"Successfully converted to PDF: {pdf_path}")
+        logger.info(f"تم التحويل إلى PDF بنجاح: {pdf_path}")
 
     except subprocess.TimeoutExpired:
-        logger.error("LibreOffice conversion timed out")
-        raise Exception("PDF conversion timed out (exceeded 2 minutes)")
+        logger.error("انتهت مهلة تحويل LibreOffice")
+        raise Exception("انتهت مهلة تحويل PDF (تجاوزت دقيقتين)")
     except Exception as e:
-        logger.error(f"LibreOffice conversion error: {e}")
-        raise Exception(f"PDF conversion failed: {str(e)}")
+        logger.error(f"خطأ في تحويل LibreOffice: {e}")
+        raise Exception(f"فشل تحويل PDF: {str(e)}")
 
 
 def find_libreoffice():
@@ -182,13 +183,13 @@ def find_libreoffice():
                 timeout=10
             )
             if result.returncode == 0:
-                logger.info(f"Found LibreOffice at: {path}")
-                logger.info(f"Version: {result.stdout.strip()}")
+                logger.info(f"تم العثور على LibreOffice في: {path}")
+                logger.info(f"الإصدار: {result.stdout.strip()}")
                 return path
         except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
             continue
 
-    logger.error("LibreOffice not   found in any standard location")
+    logger.error("لم يتم العثور على LibreOffice في أي موقع قياسي")
     return None
 
 
@@ -202,17 +203,17 @@ def find_template_path():
     template_path = server_dir / "app" / "templates" / "wedding_request_form.docx"
 
     if template_path.exists():
-        logger.info(f"Found template at: {template_path.resolve()}")
+        logger.info(f"تم العثور على القالب في: {template_path.resolve()}")
         return str(template_path.resolve())
 
     # Fallback: Log the issue for debugging
     logger.error(
-        f"Template not found at expected path: {template_path.resolve()}")
-    logger.error(f"Current file location: {Path(__file__).resolve()}")
-    logger.error(f"Server directory: {server_dir.resolve()}")
+        f"لم يتم العثور على القالب في المسار المتوقع: {template_path.resolve()}")
+    logger.error(f"موقع الملف الحالي: {Path(__file__).resolve()}")
+    logger.error(f"مجلد الخادم: {server_dir.resolve()}")
 
     raise FileNotFoundError(
-        f"wedding_request_form.docx not found at {template_path.resolve()}"
+        f"لم يتم العثور على wedding_request_form.docx في {template_path.resolve()}"
     )
 
 
@@ -233,10 +234,10 @@ def generate_wedding_pdf(reservation, output_dir: str, db):
         filled_docx_path = output_dir / f"reservation_{unique_id}_filled.docx"
         pdf_path = output_dir / f"reservation_{unique_id}.pdf"
 
-        logger.info(f"Generating PDF for reservation {reservation.id}")
-        logger.info(f"Template: {template_path}")
-        logger.info(f"DOCX output: {filled_docx_path}")
-        logger.info(f"PDF output: {pdf_path}")
+        logger.info(f"جارٍ إنشاء PDF للحجز {reservation.id}")
+        logger.info(f"القالب: {template_path}")
+        logger.info(f"مخرج DOCX: {filled_docx_path}")
+        logger.info(f"مخرج PDF: {pdf_path}")
 
         # Get database values with error handling
         try:
@@ -244,25 +245,25 @@ def generate_wedding_pdf(reservation, output_dir: str, db):
                 User.id == reservation.groom_id).first()
             if not user_of_this_reservation:
                 raise Exception(
-                    f"User not found for groom_id: {reservation.groom_id}")
+                    f"لم يتم العثور على المستخدم للعريس: {reservation.groom_id}")
 
             reserved_clan = db.query(Clan).filter(
                 Clan.id == reservation.clan_id).first()
             if not reserved_clan:
                 raise Exception(
-                    f"Reserved clan not found: {reservation.clan_id}")
+                    f"لم يتم العثور على العشيرة المحجوزة: {reservation.clan_id}")
 
             original_clan = db.query(Clan).filter(
                 Clan.id == user_of_this_reservation.clan_id).first()
             if not original_clan:
                 raise Exception(
-                    f"Original clan not found: {user_of_this_reservation.clan_id}")
+                    f"لم يتم العثور على العشيرة الأصلية: {user_of_this_reservation.clan_id}")
 
             county = db.query(County).filter(
                 County.id == user_of_this_reservation.county_id).first()
             if not county:
                 raise Exception(
-                    f"County not found: {user_of_this_reservation.county_id}")
+                    f"لم يتم العثور على البلدية: {user_of_this_reservation.county_id}")
 
             haia_committee = db.query(HaiaCommittee).filter(
                 HaiaCommittee.id == reservation.haia_committee_id).first()
@@ -271,8 +272,8 @@ def generate_wedding_pdf(reservation, output_dir: str, db):
                 MadaehCommittee.id == reservation.madaeh_committee_id).first()
 
         except Exception as e:
-            logger.error(f"Database query error: {e}")
-            raise Exception(f"Failed to fetch required data: {e}")
+            logger.error(f"خطأ في استعلام قاعدة البيانات: {e}")
+            raise Exception(f"فشل في جلب البيانات المطلوبة: {e}")
 
         # Prepare context data
         context = {
@@ -303,73 +304,73 @@ def generate_wedding_pdf(reservation, output_dir: str, db):
 
         # Verify DOCX was created
         if not filled_docx_path.exists():
-            raise Exception("DOCX file was not created successfully")
+            raise Exception("لم يتم إنشاء ملف DOCX بنجاح")
 
-        logger.info(f"DOCX created successfully: {filled_docx_path}")
+        logger.info(f"تم إنشاء DOCX بنجاح: {filled_docx_path}")
 
         # Convert to PDF
         convert_to_pdf(str(filled_docx_path), str(pdf_path))
 
         # Verify PDF was created
         if not pdf_path.exists():
-            raise Exception("PDF file was not created successfully")
+            raise Exception("لم يتم إنشاء ملف PDF بنجاح")
 
-        logger.info(f"Successfully generated PDF: {pdf_path}")
+        logger.info(f"تم إنشاء PDF بنجاح: {pdf_path}")
 
         # Always clean up the intermediate DOCX file
         try:
             if filled_docx_path.exists():
                 filled_docx_path.unlink()
                 logger.info(
-                    f"Cleaned up intermediate DOCX file: {filled_docx_path}")
+                    f"تم حذف ملف DOCX المؤقت: {filled_docx_path}")
         except Exception as e:
-            logger.warning(f"Could not delete intermediate DOCX: {e}")
+            logger.warning(f"لم يتمكن من حذف DOCX المؤقت: {e}")
 
         return str(pdf_path)
 
     except Exception as e:
         logger.error(
-            f"PDF generation failed for reservation {reservation.id}: {e}")
+            f"فشل إنشاء PDF للحجز {reservation.id}: {e}")
         # Clean up any partial files
         try:
             if 'filled_docx_path' in locals() and filled_docx_path.exists():
                 filled_docx_path.unlink()
-                logger.info("Cleaned up partial DOCX file")
+                logger.info("تم حذف ملف DOCX الجزئي")
             if 'pdf_path' in locals() and pdf_path.exists():
                 pdf_path.unlink()
-                logger.info("Cleaned up partial PDF file")
+                logger.info("تم حذف ملف PDF الجزئي")
         except Exception as cleanup_error:
-            logger.warning(f"Cleanup error: {cleanup_error}")
+            logger.warning(f"خطأ في التنظيف: {cleanup_error}")
 
-        raise Exception(f"PDF generation failed: {e}")
+        raise Exception(f"فشل إنشاء PDF: {e}")
 
 
 # Additional utility function for testing
 def test_pdf_generation():
     """Test PDF generation capabilities."""
-    print("Testing PDF generation capabilities...")
+    print("اختبار قدرات إنشاء PDF...")
 
     # Test template
     try:
         template_path = find_template_path()
-        print(f"✓ Template found: {template_path}")
+        print(f"✓ تم العثور على القالب: {template_path}")
     except Exception as e:
-        print(f"✗ Template not found: {e}")
+        print(f"✗ لم يتم العثور على القالب: {e}")
         return False
 
     # Test LibreOffice
     libreoffice_path = find_libreoffice()
     if libreoffice_path:
-        print(f"✓ LibreOffice found: {libreoffice_path}")
+        print(f"✓ تم العثور على LibreOffice: {libreoffice_path}")
     else:
-        print("✗ LibreOffice not found")
+        print("✗ لم يتم العثور على LibreOffice")
 
     # Test docx2pdf
     try:
         import docx2pdf
-        print("✓ docx2pdf available")
+        print("✓ docx2pdf متاح")
     except ImportError:
-        print("✗ docx2pdf not available")
+        print("✗ docx2pdf غير متاح")
 
     return True
 

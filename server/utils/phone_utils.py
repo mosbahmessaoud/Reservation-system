@@ -1,6 +1,4 @@
 import re
-
-
 from fastapi import HTTPException
 
 
@@ -8,7 +6,7 @@ def validate_number_phone(phone: str) -> str:
     if not phone:  # catches None, empty string, etc.
         raise HTTPException(
             status_code=400,
-            detail="Phone number is required."
+            detail="رقم الهاتف مطلوب."
         )
 
     phone = str(phone).strip()
@@ -16,13 +14,13 @@ def validate_number_phone(phone: str) -> str:
     if len(phone) != 10 or not phone.isdigit():
         raise HTTPException(
             status_code=400,
-            detail="Phone number must be exactly 10 digits."
+            detail="رقم الهاتف يجب أن يتكون من 10 أرقام بالضبط."
         )
 
     if not (phone.startswith("05") or phone.startswith("06") or phone.startswith("07")):
         raise HTTPException(
             status_code=400,
-            detail="Phone number must start with 05, 06, or 07."
+            detail="رقم الهاتف يجب أن يبدأ بـ 05 أو 06 أو 07."
         )
 
     return phone
@@ -32,7 +30,7 @@ def validate_number_phone_of_guardian(phone: str) -> str:
     if not phone:  # catches None, empty string, etc.
         raise HTTPException(
             status_code=400,
-            detail="the guardian Phone number is required."
+            detail="رقم هاتف ولي الأمر مطلوب."
         )
 
     phone = str(phone).strip()
@@ -40,28 +38,16 @@ def validate_number_phone_of_guardian(phone: str) -> str:
     if len(phone) != 10 or not phone.isdigit():
         raise HTTPException(
             status_code=400,
-            detail="the guardian Phone number must be exactly 10 digits."
+            detail="رقم هاتف ولي الأمر يجب أن يتكون من 10 أرقام بالضبط."
         )
 
     if not (phone.startswith("05") or phone.startswith("06") or phone.startswith("07")):
         raise HTTPException(
             status_code=400,
-            detail="the guardian Phone number must start with 05, 06, or 07."
+            detail="رقم هاتف ولي الأمر يجب أن يبدأ بـ 05 أو 06 أو 07."
         )
 
     return phone
-
-# def validate_number_phone_of_guardian(phone: str) -> str:
-
-#     # Pattern: must start with 05, 06, or 07 and have exactly 10 digits
-#     pattern = r"^0(5|6|7)[0-9]{8}$"
-#     if not re.fullmatch(pattern, phone):
-#         raise HTTPException(
-#             status_code=400,
-#             detail=" the phone number of guardian is not on valid format. make sur start with 06, 07, or 05 and has 10 digits ."
-#         )
-
-#     return phone
 
 
 def validate_algerian_number(phone: str) -> str:
@@ -75,13 +61,12 @@ def validate_algerian_number(phone: str) -> str:
     elif phone.startswith("2130"):
         phone = "+213" + phone[4:]
 
-
     # Validate the final format
     pattern = r"^\+213(5|6|7)[0-9]{8}$"
     if not re.fullmatch(pattern, phone):
         raise HTTPException(
             status_code=400,
-            detail=" phone number is not on valid format. make sur start with 06, 07, or 05 and has 10 digits ."
+            detail="رقم الهاتف غير صحيح. تأكد من أن الرقم يبدأ بـ 05 أو 06 أو 07 ويتكون من 10 أرقام."
         )
 
     return phone
@@ -109,43 +94,7 @@ def validate_algerian_number_for_guardian(phone: str) -> str:
     if not re.fullmatch(pattern, phone):
         raise HTTPException(
             status_code=400,
-            detail=" phone number of the guardian is not on valid format. make sur start with 06, 07, or 05 and has 10 digits ."
+            detail="رقم هاتف ولي الأمر غير صحيح. تأكد من أن الرقم يبدأ بـ 05 أو 06 أو 07 ويتكون من 10 أرقام."
         )
 
     return phone
-# def validate_algerian_number_for_guardian(phone: str) -> str:
-#     original_input = phone.strip()
-
-#     # Case 1: Starts with +213
-#     if original_input.startswith("+213"):
-#         if not re.fullmatch(r"^\+213[0-9]{9}$", original_input):
-#             raise HTTPException(
-#                 status_code=400,
-#                 detail="When using international format, the number must contain exactly 13 characters starting with +213."
-#             )
-#         if not original_input[4] in {"5", "6", "7"}:
-#             raise HTTPException(
-#                 status_code=400,
-#                 detail="When using international format, the number must start with +2135, +2136, or +2137."
-#             )
-#         return original_input
-
-#     # Case 2: Starts with 0 (local format)
-#     if original_input.startswith("0"):
-#         if len(original_input) != 10:
-#             raise HTTPException(
-#                 status_code=400,
-#                 detail="Local phone numbers must contain exactly 10 digits."
-#             )
-#         if not original_input[1] in {"5", "6", "7"}:
-#             raise HTTPException(
-#                 status_code=400,
-#                 detail="Local phone numbers must start with 05, 06, or 07."
-#             )
-#         return "+213" + original_input[1:]  # Convert to international format
-
-#     # Case 3: Anything else → invalid format
-#     raise HTTPException(
-#         status_code=400,
-#         detail="Phone number format is not recognized. Use either local (starts with 0) or international (+213) format."
-#     )
