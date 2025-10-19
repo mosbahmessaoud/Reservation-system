@@ -44,6 +44,13 @@ def delet_user(phone__number: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(
         User.phone_number == phone__number
     ).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="المستخدم غير موجود"
+        )
+    db.delete(user)
+    db.commit()
 
     return {'message': f'تم حذف المستخدم صاحب رقم الهاتف {phone__number} بنجاح'}
 
