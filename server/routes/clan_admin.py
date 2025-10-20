@@ -578,6 +578,9 @@ def reserv_some_dates(
         reserv_name=reservation_create.reserv_name,
         reserv_desctiption=reservation_create.reserv_desctiption,
         date=reservation_create.date,
+        full_name=reservation_create.full_name,
+        home_address=reservation_create.home_address,
+        phone_number=reservation_create.phone_number,
         status=ReservationSpecialStatus.validated,
         created_at=datetime.utcnow()
     )

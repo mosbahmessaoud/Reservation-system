@@ -11,7 +11,10 @@ class ReservationSpecialStatus(str, Enum):
 
 
 class ReservationSpecialBase(BaseModel):
-    reserv_name: str
+    full_name: Optional[str] = None
+    home_address: Optional[str] = None
+    phone_number: Optional[str] = None
+    reserv_name: Optional[str] = None
     reserv_desctiption: Optional[str] = None
     date: date
 
@@ -24,7 +27,10 @@ class ReservationSpecialOut(BaseModel):
     id: int
     clan_id: int
     county_id: int
-    reserv_name: str
+    full_name: Optional[str] = None
+    home_address: Optional[str] = None
+    phone_number: Optional[str] = None
+    reserv_name: Optional[str] = None
     reserv_desctiption: Optional[str] = None
     date: date
     status: ReservationSpecialStatus

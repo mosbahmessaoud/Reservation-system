@@ -25,6 +25,11 @@ class ReservationSpecial(Base):
     reserv_name = Column(String, nullable=False)
     reserv_desctiption = Column(String, nullable=True)
 
+    # added these
+    full_name = Column(String, nullable=True)
+    home_address = Column(String, nullable=True)
+    phone_number = Column(String, nullable=True)
+
     date = Column(Date, nullable=False)
     status = Column(Enum(ReservationSpecialStatus),
                     default=ReservationSpecialStatus.validated, nullable=False)
