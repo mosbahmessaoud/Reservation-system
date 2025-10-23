@@ -1068,7 +1068,7 @@ def get_valid_reservations_today(
         return {
             "validated_reservations_today": count,
             "date": today.isoformat(),
-            "clan_id": clan_id
+            "clan_id": current.clan_id
         }
     except Exception as e:
         print(f"Error in get_valid_reservations_today: {e}")
@@ -1104,7 +1104,7 @@ def get_valid_reservations_month(
             "validated_reservations_month": count,
             "month": current_month,
             "year": current_year,
-            "clan_id": clan_id
+            "clan_id": current.clan_id
         }
     except Exception as e:
         print(f"Error in get_valid_reservations_month: {e}")
@@ -1136,7 +1136,7 @@ def get_valid_reservations_year(
         return {
             "validated_reservations_year": count,
             "year": current_year,
-            "clan_id": clan_id
+            "clan_id": current.clan_id
         }
     except Exception as e:
         print(f"Error in get_valid_reservations_year: {e}")
