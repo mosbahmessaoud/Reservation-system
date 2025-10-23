@@ -1044,7 +1044,6 @@ def get_pending_dates(
         raise HTTPException(
             status_code=500, detail=f"خطأ في جلب التواريخ المعلقة: {str(e)}")
 
-
 # routers for the statistics section
 
 
@@ -1055,18 +1054,26 @@ def get_valid_reservations_today(
     current: User = Depends(get_current_user)
 ):
     """
-    Get count of validated reservations for today for a specific clan
+    Get validated reservations for today for a specific clan
     """
     try:
         today = date.today()
-        count = db.query(Reservation).filter(
+        reservations = db.query(Reservation).filter(
             Reservation.county_id == current.county_id,
             Reservation.clan_id == current.clan_id,
             Reservation.status == ReservationStatus.validated,
             func.date(Reservation.date1) == today
-        ).count()
+        ).all()
+
         return {
-            "validated_reservations_today": count,
+            "count": len(reservations),
+            "reservations": [
+                {
+                    "id": res.id,
+                    "date1": res.date1.isoformat() if res.date1 else None
+                }
+                for res in reservations
+            ],
             "date": today.isoformat(),
             "clan_id": current.clan_id
         }
@@ -1085,23 +1092,30 @@ def get_valid_reservations_month(
     current: User = Depends(get_current_user)
 ):
     """
-    Get count of validated reservations for current month for a specific clan
+    Get validated reservations for current month for a specific clan
     """
     try:
         now = datetime.now()
         current_month = now.month
         current_year = now.year
 
-        count = db.query(Reservation).filter(
+        reservations = db.query(Reservation).filter(
             Reservation.county_id == current.county_id,
             Reservation.clan_id == current.clan_id,
             Reservation.status == ReservationStatus.validated,
             extract('month', Reservation.date1) == current_month,
             extract('year', Reservation.date1) == current_year
-        ).count()
+        ).all()
 
         return {
-            "validated_reservations_month": count,
+            "count": len(reservations),
+            "reservations": [
+                {
+                    "id": res.id,
+                    "date1": res.date1.isoformat() if res.date1 else None
+                }
+                for res in reservations
+            ],
             "month": current_month,
             "year": current_year,
             "clan_id": current.clan_id
@@ -1113,28 +1127,37 @@ def get_valid_reservations_month(
             detail=f"خطأ في جلب عدد الحجوزات المؤكدة للشهر: {str(e)}"
         )
 
-
+#########################
 # For a specific clan - by year
+
+
 @router.get("/valid_reservations_year")
 def get_valid_reservations_year(
     db: Session = Depends(get_db),
     current: User = Depends(get_current_user)
 ):
     """
-    Get count of validated reservations for current year for a specific clan
+    Get validated reservations for current year for a specific clan
     """
     try:
         current_year = datetime.now().year
 
-        count = db.query(Reservation).filter(
+        reservations = db.query(Reservation).filter(
             Reservation.county_id == current.county_id,
             Reservation.clan_id == current.clan_id,
             Reservation.status == ReservationStatus.validated,
             extract('year', Reservation.date1) == current_year
-        ).count()
+        ).all()
 
         return {
-            "validated_reservations_year": count,
+            "count": len(reservations),
+            "reservations": [
+                {
+                    "id": res.id,
+                    "date1": res.date1.isoformat() if res.date1 else None
+                }
+                for res in reservations
+            ],
             "year": current_year,
             "clan_id": current.clan_id
         }
@@ -1153,17 +1176,25 @@ def get_valid_reservations_today_county(
     current: User = Depends(get_current_user)
 ):
     """
-    Get count of validated reservations for today for all clans in the county
+    Get validated reservations for today for all clans in the county
     """
     try:
         today = date.today()
-        count = db.query(Reservation).filter(
+        reservations = db.query(Reservation).filter(
             Reservation.county_id == current.county_id,
             Reservation.status == ReservationStatus.validated,
             func.date(Reservation.date1) == today
-        ).count()
+        ).all()
+
         return {
-            "validated_reservations_today_county": count,
+            "count": len(reservations),
+            "reservations": [
+                {
+                    "id": res.id,
+                    "date1": res.date1.isoformat() if res.date1 else None
+                }
+                for res in reservations
+            ],
             "date": today.isoformat()
         }
     except Exception as e:
@@ -1181,22 +1212,29 @@ def get_valid_reservations_month_county(
     current: User = Depends(get_current_user)
 ):
     """
-    Get count of validated reservations for current month for all clans in the county
+    Get validated reservations for current month for all clans in the county
     """
     try:
         now = datetime.now()
         current_month = now.month
         current_year = now.year
 
-        count = db.query(Reservation).filter(
+        reservations = db.query(Reservation).filter(
             Reservation.county_id == current.county_id,
             Reservation.status == ReservationStatus.validated,
             extract('month', Reservation.date1) == current_month,
             extract('year', Reservation.date1) == current_year
-        ).count()
+        ).all()
 
         return {
-            "validated_reservations_month_county": count,
+            "count": len(reservations),
+            "reservations": [
+                {
+                    "id": res.id,
+                    "date1": res.date1.isoformat() if res.date1 else None
+                }
+                for res in reservations
+            ],
             "month": current_month,
             "year": current_year
         }
@@ -1215,19 +1253,26 @@ def get_valid_reservations_year_county(
     current: User = Depends(get_current_user)
 ):
     """
-    Get count of validated reservations for current year for all clans in the county
+    Get validated reservations for current year for all clans in the county
     """
     try:
         current_year = datetime.now().year
 
-        count = db.query(Reservation).filter(
+        reservations = db.query(Reservation).filter(
             Reservation.county_id == current.county_id,
             Reservation.status == ReservationStatus.validated,
             extract('year', Reservation.date1) == current_year
-        ).count()
+        ).all()
 
         return {
-            "validated_reservations_year_county": count,
+            "count": len(reservations),
+            "reservations": [
+                {
+                    "id": res.id,
+                    "date1": res.date1.isoformat() if res.date1 else None
+                }
+                for res in reservations
+            ],
             "year": current_year
         }
     except Exception as e:
