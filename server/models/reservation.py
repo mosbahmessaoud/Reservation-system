@@ -69,3 +69,4 @@ class Reservation(Base):
         "HaiaCommittee", back_populates="reservations", lazy="select")
     madaeh_committee = relationship(
         "MadaehCommittee", back_populates="reservations", lazy="select")
+ 

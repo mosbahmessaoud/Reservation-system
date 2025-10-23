@@ -29,6 +29,9 @@ from ..models.reservation import Reservation, ReservationStatus
 from ..models.clan_settings import ClanSettings
 from ..schemas.reservation import ReservationCreate, ReservationCreateResponse, ReservationOut
 
+from datetime import datetime, date
+from sqlalchemy import extract, func
+
 router = APIRouter(
     prefix="/reservations",
     tags=["reservations"]
@@ -576,7 +579,6 @@ def cancel_a_groom_reservation(groom_id: int, db: Session = Depends(get_db), cur
     }
 
 
-
 @router.delete("/delete_res/{reservation_id}", response_model=dict, dependencies=[Depends(get_current_user)])
 def delete_reservation(reservation_id: int, db: Session = Depends(get_db)):
     resv = db.query(Reservation).filter(
@@ -1041,3 +1043,199 @@ def get_pending_dates(
         print(f"Error in get_pending_dates: {e}")
         raise HTTPException(
             status_code=500, detail=f"خطأ في جلب التواريخ المعلقة: {str(e)}")
+
+
+# routers for the statistics section
+
+
+# For a specific clan - by day
+@router.get("/valid_reservations_today/{clan_id}")
+def get_valid_reservations_today(
+    clan_id: int,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user)
+):
+    """
+    Get count of validated reservations for today for a specific clan
+    """
+    try:
+        today = date.today()
+        count = db.query(Reservation).filter(
+            Reservation.county_id == current.county_id,
+            Reservation.clan_id == clan_id,
+            Reservation.status == ReservationStatus.validated,
+            func.date(Reservation.date1) == today
+        ).count()
+        return {
+            "validated_reservations_today": count,
+            "date": today.isoformat(),
+            "clan_id": clan_id
+        }
+    except Exception as e:
+        print(f"Error in get_valid_reservations_today: {e}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"خطأ في جلب عدد الحجوزات المؤكدة لليوم: {str(e)}"
+        )
+
+
+# For a specific clan - by month
+@router.get("/valid_reservations_month/{clan_id}")
+def get_valid_reservations_month(
+    clan_id: int,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user)
+):
+    """
+    Get count of validated reservations for current month for a specific clan
+    """
+    try:
+        now = datetime.now()
+        current_month = now.month
+        current_year = now.year
+        
+        count = db.query(Reservation).filter(
+            Reservation.county_id == current.county_id,
+            Reservation.clan_id == clan_id,
+            Reservation.status == ReservationStatus.validated,
+            extract('month', Reservation.date1) == current_month,
+            extract('year', Reservation.date1) == current_year
+        ).count()
+        
+        return {
+            "validated_reservations_month": count,
+            "month": current_month,
+            "year": current_year,
+            "clan_id": clan_id
+        }
+    except Exception as e:
+        print(f"Error in get_valid_reservations_month: {e}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"خطأ في جلب عدد الحجوزات المؤكدة للشهر: {str(e)}"
+        )
+
+
+# For a specific clan - by year
+@router.get("/valid_reservations_year/{clan_id}")
+def get_valid_reservations_year(
+    clan_id: int,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user)
+):
+    """
+    Get count of validated reservations for current year for a specific clan
+    """
+    try:
+        current_year = datetime.now().year
+        
+        count = db.query(Reservation).filter(
+            Reservation.county_id == current.county_id,
+            Reservation.clan_id == clan_id,
+            Reservation.status == ReservationStatus.validated,
+            extract('year', Reservation.date1) == current_year
+        ).count()
+        
+        return {
+            "validated_reservations_year": count,
+            "year": current_year,
+            "clan_id": clan_id
+        }
+    except Exception as e:
+        print(f"Error in get_valid_reservations_year: {e}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"خطأ في جلب عدد الحجوزات المؤكدة للسنة: {str(e)}"
+        )
+
+
+# For entire county - by day
+@router.get("/valid_reservations_today_county")
+def get_valid_reservations_today_county(
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user)
+):
+    """
+    Get count of validated reservations for today for all clans in the county
+    """
+    try:
+        today = date.today()
+        count = db.query(Reservation).filter(
+            Reservation.county_id == current.county_id,
+            Reservation.status == ReservationStatus.validated,
+            func.date(Reservation.date1) == today
+        ).count()
+        return {
+            "validated_reservations_today_county": count,
+            "date": today.isoformat()
+        }
+    except Exception as e:
+        print(f"Error in get_valid_reservations_today_county: {e}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"خطأ في جلب عدد الحجوزات المؤكدة لليوم: {str(e)}"
+        )
+
+
+# For entire county - by month
+@router.get("/valid_reservations_month_county")
+def get_valid_reservations_month_county(
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user)
+):
+    """
+    Get count of validated reservations for current month for all clans in the county
+    """
+    try:
+        now = datetime.now()
+        current_month = now.month
+        current_year = now.year
+        
+        count = db.query(Reservation).filter(
+            Reservation.county_id == current.county_id,
+            Reservation.status == ReservationStatus.validated,
+            extract('month', Reservation.date1) == current_month,
+            extract('year', Reservation.date1) == current_year
+        ).count()
+        
+        return {
+            "validated_reservations_month_county": count,
+            "month": current_month,
+            "year": current_year
+        }
+    except Exception as e:
+        print(f"Error in get_valid_reservations_month_county: {e}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"خطأ في جلب عدد الحجوزات المؤكدة للشهر: {str(e)}"
+        )
+
+
+# For entire county - by year
+@router.get("/valid_reservations_year_county")
+def get_valid_reservations_year_county(
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user)
+):
+    """
+    Get count of validated reservations for current year for all clans in the county
+    """
+    try:
+        current_year = datetime.now().year
+        
+        count = db.query(Reservation).filter(
+            Reservation.county_id == current.county_id,
+            Reservation.status == ReservationStatus.validated,
+            extract('year', Reservation.date1) == current_year
+        ).count()
+        
+        return {
+            "validated_reservations_year_county": count,
+            "year": current_year
+        }
+    except Exception as e:
+        print(f"Error in get_valid_reservations_year_county: {e}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"خطأ في جلب عدد الحجوزات المؤكدة للسنة: {str(e)}"
+        )
