@@ -182,63 +182,57 @@ def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
     if clan.county_id != county.id:
         raise HTTPException(
             status_code=404, detail="العشيرة لا تنتمي إلى هذه المقاطعة.")
+
+    hashed_password = auth_utils.get_password_hash(user_in.password)
+    otp_code = generate_otp_code()
+    # guardian_phone = validate_algerian_number(user_in.guardian_phone)
+    validate_number_phone(user_in.phone_number)
+    validate_number_phone_of_guardian(user_in.guardian_phone)
+    user = User(
+        phone_number=user_in.phone_number,
+        password_hash=hashed_password,
+        role=UserRole.groom,
+        first_name=user_in.first_name,
+        last_name=user_in.last_name,
+        father_name=user_in.father_name,
+        grandfather_name=user_in.grandfather_name,
+        birth_date=user_in.birth_date,
+        birth_address=user_in.birth_address,
+        home_address=user_in.home_address,
+        clan_id=user_in.clan_id,
+        county_id=user_in.county_id,
+        guardian_name=user_in.guardian_name,
+        guardian_phone=user_in.guardian_phone,
+        guardian_home_address=user_in.guardian_home_address,
+        guardian_birth_address=user_in.guardian_birth_address,
+        guardian_birth_date=user_in.guardian_birth_date,
+        guardian_relation=user_in.guardian_relation,
+        otp_code=otp_code,
+        otp_expiration=datetime.utcnow() + timedelta(hours=2),
+        # New fields from updated model
+        created_at=datetime.utcnow(),
+        status=UserStatus.active,
+    )
+
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    # Send OTP
     try:
-        hashed_password = auth_utils.get_password_hash(user_in.password)
-        otp_code = generate_otp_code()
-        # guardian_phone = validate_algerian_number(user_in.guardian_phone)
-        validate_number_phone(user_in.phone_number)
-        validate_number_phone_of_guardian(user_in.guardian_phone)
-        user = User(
-            phone_number=user_in.phone_number,
-            password_hash=hashed_password,
-            role=UserRole.groom,
-            first_name=user_in.first_name,
-            last_name=user_in.last_name,
-            father_name=user_in.father_name,
-            grandfather_name=user_in.grandfather_name,
-            birth_date=user_in.birth_date,
-            birth_address=user_in.birth_address,
-            home_address=user_in.home_address,
-            clan_id=user_in.clan_id,
-            county_id=user_in.county_id,
-            guardian_name=user_in.guardian_name,
-            guardian_phone=user_in.guardian_phone,
-            guardian_home_address=user_in.guardian_home_address,
-            guardian_birth_address=user_in.guardian_birth_address,
-            guardian_birth_date=user_in.guardian_birth_date,
-            guardian_relation=user_in.guardian_relation,
-            otp_code=otp_code,
-            otp_expiration=datetime.utcnow() + timedelta(hours=2),
-            # New fields from updated model
-            created_at=datetime.utcnow(),
-            status=UserStatus.active,
-        )
-
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-        # Send OTP
-        try:
-            send_otp_to_user_by_twilo(user.phone_number, otp_code)
-        except ValueError as e:
-            # If SMS fails, still keep user but notify
-            logger.error(f"SMS failed for {user.phone_number}: {e}")
-            return {
-                "message": "تم إنشاء الحساب لكن فشل إرسال الرمز",
-                "user_id": user.id,
-                "error": str(e)
-            }
-
+        send_otp_to_user_by_twilo(user.phone_number, otp_code)
+    except ValueError as e:
+        # If SMS fails, still keep user but notify
+        logger.error(f"SMS failed for {user.phone_number}: {e}")
         return {
-            "message": "تم إنشاء الحساب. تحقق من هاتفك",
-            "user_id": user.id
+            "message": "تم إنشاء الحساب لكن فشل إرسال الرمز",
+            "user_id": user.id,
+            "error": str(e)
         }
 
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"Registration error: {e}")
-        raise HTTPException(status_code=500, detail="حدث خطأ")
+    return {
+        "message": "تم إنشاء الحساب. تحقق من هاتفك",
+        "user_id": user.id
+    }
 
     # send_otp_to_user_by_twilo(user.phone_number, otp_code)
 
