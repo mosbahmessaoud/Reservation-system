@@ -225,7 +225,7 @@ def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
         logger.error(f"SMS failed for {user.phone_number}: {e}")
         return {
             "message": "تم إنشاء الحساب لكن فشل إرسال الرمز",
-            "user_id": user.id,
+            "user": user,
             "error": str(e)
         }
 
