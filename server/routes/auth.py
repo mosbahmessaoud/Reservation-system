@@ -231,7 +231,7 @@ def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
 
     return {
         "message": "تم إنشاء الحساب. تحقق من هاتفك",
-        "user_id": user.id
+        "user": user
     }
 
     # send_otp_to_user_by_twilo(user.phone_number, otp_code)
