@@ -115,28 +115,28 @@ def update_profile(
 
     for field, value in user_update.dict(exclude_unset=True).items():
         if field == "phone_number":
-            # # on production i will dicomment it
-            # # Check if the phone number is different
-            # if value != current.phone_number:
-            #     # Check if already taken
-            #     existing = db.query(User).filter(
-            #         User.phone_number == value).first()
-            #     if existing:
-            #         raise HTTPException(
-            #             status_code=400, detail="Phone number already in use.")
+            # on production i will dicomment it
+            # Check if the phone number is different
+            if value != current.phone_number:
+                # Check if already taken
+                existing = db.query(User).filter(
+                    User.phone_number == value).first()
+                if existing:
+                    raise HTTPException(
+                        status_code=400, detail="Phone number already in use.")
 
-            #     # Generate OTP and send to new number
-            #     temp_code = generate_otp_code()
-            #     send_otp_to_user_by_twilo(value, temp_code)
+                # Generate OTP and send to new number
+                temp_code = generate_otp_code()
+                send_otp_to_user_by_twilo(value, temp_code)
 
-            #     current.temp_phone_number = value
-            #     current.temp_phone_otp_code = temp_code
-            #     current.temp_phone_otp_expires_at = datetime.utcnow() + datetime.timedelta(hours=2)
+                current.temp_phone_number = value
+                current.temp_phone_otp_code = temp_code
+                current.temp_phone_otp_expires_at = datetime.utcnow() + datetime.timedelta(hours=2)
 
-            #     db.commit()
-            #     return {
-            #         "message": "OTP sent to new phone number. Please verify to complete phone update."
-            #     }
+                db.commit()
+                return {
+                    "message": "OTP sent to new phone number. Please verify to complete phone update."
+                }
             continue  # skip setting phone directly
 
         if has_active_reservation:

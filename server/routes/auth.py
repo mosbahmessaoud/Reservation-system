@@ -1,7 +1,7 @@
 
 # server\routes\auth.py
 from tokenize import String
-from fastapi import APIRouter, Body, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, logger, status
 from platformdirs import user_config_dir
 from pydantic import BaseModel
 import sqlalchemy
@@ -14,7 +14,7 @@ from server.models.clan import Clan
 from server.models.county import County
 from server.schemas.user import UpdateGroomRequest, UserCreate, UserOut
 from server.schemas.auth import LoginRequest, RegisterResponse, Token
-from server.utils.otp_utils import send_otp_to_user_by_twilo, generate_otp_code
+from server.utils.otp_utils import send_otp_to_user_by_twilo, generate_otp_code, verify_otp
 from server.routes.grooms import groom_required
 from server.utils.phone_utils import validate_algerian_number, validate_number_phone, validate_number_phone_of_guardian
 from server.routes.clan_admin import clan_admin_required
@@ -182,48 +182,127 @@ def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
     if clan.county_id != county.id:
         raise HTTPException(
             status_code=404, detail="العشيرة لا تنتمي إلى هذه المقاطعة.")
+    try:
+        hashed_password = auth_utils.get_password_hash(user_in.password)
+        otp_code = generate_otp_code()
+        # guardian_phone = validate_algerian_number(user_in.guardian_phone)
+        validate_number_phone(user_in.phone_number)
+        validate_number_phone_of_guardian(user_in.guardian_phone)
+        user = User(
+            phone_number=user_in.phone_number,
+            password_hash=hashed_password,
+            role=UserRole.groom,
+            first_name=user_in.first_name,
+            last_name=user_in.last_name,
+            father_name=user_in.father_name,
+            grandfather_name=user_in.grandfather_name,
+            birth_date=user_in.birth_date,
+            birth_address=user_in.birth_address,
+            home_address=user_in.home_address,
+            clan_id=user_in.clan_id,
+            county_id=user_in.county_id,
+            guardian_name=user_in.guardian_name,
+            guardian_phone=user_in.guardian_phone,
+            guardian_home_address=user_in.guardian_home_address,
+            guardian_birth_address=user_in.guardian_birth_address,
+            guardian_birth_date=user_in.guardian_birth_date,
+            guardian_relation=user_in.guardian_relation,
+            otp_code=otp_code,
+            otp_expiration=datetime.utcnow() + timedelta(hours=2),
+            # New fields from updated model
+            created_at=datetime.utcnow(),
+            status=UserStatus.active,
+        )
 
-    hashed_password = auth_utils.get_password_hash(user_in.password)
-    otp_code = generate_otp_code()
-    # guardian_phone = validate_algerian_number(user_in.guardian_phone)
-    validate_number_phone(user_in.phone_number)
-    validate_number_phone_of_guardian(user_in.guardian_phone)
-    user = User(
-        phone_number=user_in.phone_number,
-        password_hash=hashed_password,
-        role=UserRole.groom,
-        first_name=user_in.first_name,
-        last_name=user_in.last_name,
-        father_name=user_in.father_name,
-        grandfather_name=user_in.grandfather_name,
-        birth_date=user_in.birth_date,
-        birth_address=user_in.birth_address,
-        home_address=user_in.home_address,
-        clan_id=user_in.clan_id,
-        county_id=user_in.county_id,
-        guardian_name=user_in.guardian_name,
-        guardian_phone=user_in.guardian_phone,
-        guardian_home_address=user_in.guardian_home_address,
-        guardian_birth_address=user_in.guardian_birth_address,
-        guardian_birth_date=user_in.guardian_birth_date,
-        guardian_relation=user_in.guardian_relation,
-        otp_code=otp_code,
-        otp_expiration=datetime.utcnow() + timedelta(hours=2),
-        # New fields from updated model
-        created_at=datetime.utcnow(),
-        status=UserStatus.active,
-    )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        # Send OTP
+        try:
+            send_otp_to_user_by_twilo(user.phone_number, otp_code)
+        except ValueError as e:
+            # If SMS fails, still keep user but notify
+            logger.error(f"SMS failed for {user.phone_number}: {e}")
+            return {
+                "message": "تم إنشاء الحساب لكن فشل إرسال الرمز",
+                "user_id": user.id,
+                "error": str(e)
+            }
 
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+        return {
+            "message": "تم إنشاء الحساب. تحقق من هاتفك",
+            "user_id": user.id
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Registration error: {e}")
+        raise HTTPException(status_code=500, detail="حدث خطأ")
 
     # send_otp_to_user_by_twilo(user.phone_number, otp_code)
 
-    return {
-        "message": "تم إنشاء الحساب. تحقق من هاتفك للحصول على رمز التحقق.",
-        "user": user
-    }
+    # return {
+    #     "message": "تم إنشاء الحساب. تحقق من هاتفك للحصول على رمز التحقق.",
+    #     "user": user
+    # }
+
+########
+
+
+# @router.post("/verify-otp")
+# async def verify_otp_endpoint(
+#     phone_number: str,
+#     otp_code: str,
+#     db: Session = Depends(get_db)
+# ):
+#     user = db.query(User).filter(User.phone_number == phone_number).first()
+
+#     if not user:
+#         raise HTTPException(status_code=404, detail="المستخدم غير موجود")
+
+#     if user.phone_verified:
+#         raise HTTPException(status_code=400, detail="الحساب مفعل مسبقاً")
+
+#     # Verify OTP
+#     if not verify_otp(otp_code, user.otp_code, user.otp_expiration):
+#         raise HTTPException(status_code=400, detail="رمز التحقق خاطئ أو منتهي")
+
+#     # Activate user
+#     user.phone_verified = True
+#     user.otp_code = None  # Clear OTP
+#     user.otp_expiration = None
+
+#     db.commit()
+
+#     return {"message": "تم تفعيل الحساب بنجاح"}
+
+
+# @router.post("/resend-verification")
+# async def resend_otp(phone_number: str, db: Session = Depends(get_db)):
+#     user = db.query(User).filter(User.phone_number == phone_number).first()
+
+#     if not user:
+#         raise HTTPException(status_code=404, detail="المستخدم غير موجود")
+
+#     if user.phone_verified:
+#         raise HTTPException(status_code=400, detail="الحساب مفعل مسبقاً")
+
+#     # Generate new OTP
+#     new_otp = generate_otp_code()
+#     user.otp_code = new_otp
+#     user.otp_expiration = datetime.utcnow() + timedelta(hours=2)
+
+#     db.commit()
+
+#     # Send new OTP
+#     try:
+#         send_otp_to_user_by_twilo(user.phone_number, new_otp)
+#         return {"message": "تم إعادة إرسال رمز التحقق"}
+#     except ValueError as e:
+#         raise HTTPException(status_code=400, detail=str(e))
+
+##########################
 
 
 @router.post("/verify-phone")
@@ -275,9 +354,12 @@ def resend_otp(payload: PhoneRequest, db: Session = Depends(get_db)):
     user.otp_expiration = datetime.utcnow() + timedelta(hours=2)
     db.commit()
 
-    # send_otp_to_user_by_twilo(user.phone_number, new_code)
-
-    return {"message": "تم إرسال رمز تحقق جديد إلى هاتفك."}
+    # Send new OTP
+    try:
+        send_otp_to_user_by_twilo(user.phone_number, new_code)
+        return {"message": "تم إرسال رمز تحقق جديد إلى هاتفك."}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # for updating nuber case
@@ -354,9 +436,12 @@ def request_password_reset(
     user.otp_expiration = datetime.utcnow() + timedelta(hours=2)
     db.commit()
 
-    # send_otp_to_user_by_twilo(user.phone_number, new_code)
-
-    return {"message": "تم إرسال رمز التحقق لإعادة تعيين كلمة المرور إلى هاتفك."}
+    # Send new OTP
+    try:
+        send_otp_to_user_by_twilo(user.phone_number, new_code)
+        return {"message": "تم إرسال رمز التحقق لإعادة تعيين كلمة المرور إلى هاتفك."}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 class ResetPasswordRequest(BaseModel):
