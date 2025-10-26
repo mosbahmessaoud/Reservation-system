@@ -75,7 +75,7 @@ def send_otp_to_user_by_twilo(phone_number: str, code: str) -> bool:
 
         # Send SMS
         message = client.messages.create(
-            body=f"رمز التحقق من تصبيق أَسُولِي : {code}\nصالح لمدة ساعتين",
+            body=f"رمز التحقق من أَسُولِي:{code}",
             from_=TWILIO_PHONE,
             to=phone_number
         )
