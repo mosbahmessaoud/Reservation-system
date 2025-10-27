@@ -73,14 +73,22 @@ def send_otp_to_user_by_twilo(phone_number: str, code: str) -> bool:
         # Create Twilio client
         client = Client(TWILIO_SID, TWILIO_TOKEN)
 
-        # Send SMS
-        message = client.messages.create(
-            body=f"رمز التحقق من أَسُولِي:{code}",
-            from_=TWILIO_PHONE,
-            to=phone_number
-        )
+        verification = client.verify \
+            .v2 \
+            .services('VA118c8228ca9a7c4966ce9fa1a5ef34f7') \
+            .verifications \
+            .create(to=phone_number, channel='sms')
 
-        logger.info(f"✅ OTP sent to {phone_number}, SID: {message.sid}")
+        print(verification.sid)
+
+        # # Send SMS
+        # message = client.messages.create(
+        #     body=f"رمز التحقق من أَسُولِي:{code}",
+        #     from_=TWILIO_PHONE,
+        #     to=phone_number
+        # )
+
+        logger.info(f"✅ OTP sent to {phone_number}, SID: {verification.sid}")
         return True
 
     except TwilioRestException as e:
