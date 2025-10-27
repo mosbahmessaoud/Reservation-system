@@ -1,5 +1,3 @@
-
-# server/utils/otp_utils.py
 import secrets
 from twilio.rest import Client
 from twilio.base.exceptions import TwilioRestException
@@ -14,6 +12,8 @@ logger = logging.getLogger(__name__)
 TWILIO_SID = os.getenv("TWILIO_SID")
 TWILIO_TOKEN = os.getenv("TWILIO_TOKEN")
 TWILIO_PHONE = os.getenv("TWILIO_PHONE")
+TWILIO_MESSAGING_SERVICE_SID = os.getenv(
+    "TWILIO_MESSAGING_SERVICE_SID", "VA118c8228ca9a7c4966ce9fa1a5ef34f7")
 
 # Simple in-memory rate limiting (good for 100 users)
 otp_attempts = {}
@@ -53,15 +53,15 @@ def check_rate_limit(phone_number: str) -> bool:
 
 def send_otp_to_user_by_twilo(phone_number: str, code: str) -> bool:
     """
-    Simple OTP sender for small projects
-    Returns True if sent successfully, raises ValueError on error
+    Send YOUR custom OTP code using Twilio Messaging Service
+    Uses your service SID: VA118c8228ca9a7c4966ce9fa1a5ef34f7
     """
     try:
         # Validate phone number
         phone_number = validate_algerian_number(phone_number)
 
         # Check credentials
-        if not all([TWILIO_SID, TWILIO_TOKEN, TWILIO_PHONE]):
+        if not all([TWILIO_SID, TWILIO_TOKEN, TWILIO_MESSAGING_SERVICE_SID]):
             logger.error("Twilio credentials missing")
             raise ValueError("إعدادات Twilio غير مضبوطة")
 
@@ -73,22 +73,15 @@ def send_otp_to_user_by_twilo(phone_number: str, code: str) -> bool:
         # Create Twilio client
         client = Client(TWILIO_SID, TWILIO_TOKEN)
 
-        verification = client.verify \
-            .v2 \
-            .services('VA118c8228ca9a7c4966ce9fa1a5ef34f7') \
-            .verifications \
-            .create(to=phone_number, channel='sms')
+        # ✅ Send SMS with YOUR code using Messaging Service
+        message = client.messages.create(
+            messaging_service_sid=TWILIO_MESSAGING_SERVICE_SID,
+            body=f"رمز التحقق من أَسُولِي:{code}",
+            to=phone_number
+        )
 
-        print(verification.sid)
-
-        # # Send SMS
-        # message = client.messages.create(
-        #     body=f"رمز التحقق من أَسُولِي:{code}",
-        #     from_=TWILIO_PHONE,
-        #     to=phone_number
-        # )
-
-        logger.info(f"✅ OTP sent to {phone_number}, SID: {verification.sid}")
+        logger.info(f"✅ OTP {code} sent to {phone_number}, SID: {message.sid}")
+        print(f"Message SID: {message.sid}")
         return True
 
     except TwilioRestException as e:
@@ -102,6 +95,8 @@ def send_otp_to_user_by_twilo(phone_number: str, code: str) -> bool:
             raise ValueError("رقم الهاتف غير صالح")
         elif e.code in [21610, 30005]:
             raise ValueError("الرقم غير موجود أو لا يمكن الوصول إليه")
+        elif e.code == 21606:
+            raise ValueError("رقم الهاتف في القائمة السوداء")
         else:
             raise ValueError(f"خطأ في الإرسال: {e.msg}")
 
@@ -115,32 +110,3 @@ def verify_otp(user_otp: str, stored_otp: str, expiration: datetime) -> bool:
     if datetime.utcnow() > expiration:
         return False
     return secrets.compare_digest(user_otp.strip(), stored_otp.strip())
-
-
-# # server\utils\otp_utils.py
-# import random
-# from twilio.rest import Client
-# import os
-
-# from server.utils.phone_utils import validate_algerian_number
-
-# TWILIO_SID = os.getenv("TWILIO_SID")
-# TWILIO_TOKEN = os.getenv("TWILIO_TOKEN")
-# TWILIO_PHONE = os.getenv("TWILIO_PHONE")
-
-
-# def generate_otp_code(length: int = 6) -> str:
-#     return ''.join([str(random.randint(0, 9)) for _ in range(length)])
-
-
-# def send_otp_to_user_by_twilo(phone_number: str, code: str):
-#     phone_number = validate_algerian_number(phone_number)
-#     if not TWILIO_SID or not TWILIO_TOKEN or not TWILIO_PHONE:
-#         raise ValueError("إعدادات Twilio غير مضبوطة بشكل صحيح.")
-#     client = Client(TWILIO_SID, TWILIO_TOKEN)
-#     message = f"رمز التحقق الخاص بك هو {code}"
-#     client.messages.create(
-#         body=message,
-#         from_=TWILIO_PHONE,
-#         to=phone_number
-#     )
