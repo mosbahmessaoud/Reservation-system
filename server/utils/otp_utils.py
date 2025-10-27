@@ -13,7 +13,7 @@ TWILIO_SID = os.getenv("TWILIO_SID")
 TWILIO_TOKEN = os.getenv("TWILIO_TOKEN")
 TWILIO_PHONE = os.getenv("TWILIO_PHONE")
 TWILIO_MESSAGING_SERVICE_SID = os.getenv(
-    "TWILIO_MESSAGING_SERVICE_SID", "VA118c8228ca9a7c4966ce9fa1a5ef34f7")
+    "TWILIO_MESSAGING_SERVICE_SID")
 
 # Simple in-memory rate limiting (good for 100 users)
 otp_attempts = {}
@@ -52,10 +52,7 @@ def check_rate_limit(phone_number: str) -> bool:
 
 
 def send_otp_to_user_by_twilo(phone_number: str, code: str) -> bool:
-    """
-    Send YOUR custom OTP code using Twilio Messaging Service
-    Uses your service SID: VA118c8228ca9a7c4966ce9fa1a5ef34f7
-    """
+
     try:
         # Validate phone number
         phone_number = validate_algerian_number(phone_number)
@@ -79,7 +76,6 @@ def send_otp_to_user_by_twilo(phone_number: str, code: str) -> bool:
             body=f"رمز التحقق من أَسُولِي:{code}",
             to=phone_number
         )
-
         logger.info(f"✅ OTP {code} sent to {phone_number}, SID: {message.sid}")
         print(f"Message SID: {message.sid}")
         return True
