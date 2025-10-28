@@ -19,6 +19,7 @@ from server.schemas.madaih_committe import MadaihCreate, MadaihOut, MadaihUpdate
 from server.routes.reservations import create_reservation
 from server.schemas.reservation import ReservationCreate
 from server.schemas.reservations_special import ReservationSpecialCreate, ReservationSpecialOut
+from server.CRUD.clan_rules_crud import update
 from ..auth_utils import get_current_user, get_db, require_role
 from ..models.user import User, UserRole, UserStatus
 from ..models.hall import Hall
@@ -209,6 +210,8 @@ def get_deleted_groom(groom_phone: str, db: Session = Depends(get_db), current: 
     if reservations:
         for reservation in reservations:
             reservation.status = ReservationStatus.cancelled
+            db.add(reservation)  # Mark the reservation for update
+        db.flush()
 
     db.delete(groom)
     db.commit()
