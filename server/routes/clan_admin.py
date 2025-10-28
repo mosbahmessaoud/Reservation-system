@@ -201,17 +201,24 @@ def get_deleted_groom(groom_phone: str, db: Session = Depends(get_db), current: 
             status_code=404, detail="العريس غير موجود أو ليس في عشيرتك")
 
     # Cancel all active reservations for this groom
-    reservations = db.query(Reservation).filter(
+    reservations_p = db.query(Reservation).filter(
         Reservation.county_id == current.county_id,
         Reservation.groom_id == groom.id,
-        Reservation.status != ReservationStatus.cancelled
-    ).all()
+        Reservation.status != ReservationStatus.pending_validation
+    ).first()
+    reservations_V = db.query(Reservation).filter(
+        Reservation.county_id == current.county_id,
+        Reservation.groom_id == groom.id,
+        Reservation.status == ReservationStatus.validated
+    ).first()
 
-    if reservations:
-        for reservation in reservations:
-            reservation.status = ReservationStatus.cancelled
-            db.add(reservation)  # Mark the reservation for update
-        db.flush()
+    if reservations_V:
+        reservations_V.status = ReservationStatus.cancelled
+
+    if reservations_p:
+        reservations_p.status = ReservationStatus.cancelled
+
+    db.commit()
 
     db.delete(groom)
     db.commit()
