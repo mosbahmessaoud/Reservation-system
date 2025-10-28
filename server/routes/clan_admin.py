@@ -189,7 +189,7 @@ def list_grooms(db: Session = Depends(get_db), current: User = Depends(clan_admi
 #     return {"message": f"تم حذف العريس برقم الهاتف {groom_phone} بنجاح."}
 
 
-@router.delete("/grooms_delete/{groom_phone}", response_model=DeleteResponse, dependencies=[Depends(clan_admin_required)])
+@router.delete("/grooms_deleted/{groom_phone}", response_model=DeleteResponse, dependencies=[Depends(clan_admin_required)])
 def deleted_groom(groom_phone: str, db: Session = Depends(get_db), current: User = Depends(clan_admin_required)):
     groom = db.query(User).filter(
         User.phone_number == groom_phone,
