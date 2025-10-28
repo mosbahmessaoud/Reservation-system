@@ -58,7 +58,7 @@ class User(Base):
     county = relationship("County",
                           back_populates="users", lazy="select")
 
-    # Groom-specific fields  
+    # Groom-specific fields
     guardian_name = Column(String, nullable=True)
     guardian_phone = Column(String, nullable=True)
     guardian_relation = Column(String, nullable=True)
@@ -74,7 +74,7 @@ class User(Base):
 
     # Relationships
     reservations = relationship(
-        "Reservation", back_populates="groom", lazy="select")
+        "Reservation", back_populates="groom", lazy="select",     cascade="all")
 
     def is_super_admin(self):
         return self.role == UserRole.super_admin

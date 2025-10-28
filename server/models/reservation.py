@@ -20,7 +20,9 @@ class Reservation(Base):
     __tablename__ = "reservations"
 
     id = Column(Integer, primary_key=True, index=True)
-    groom_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    groom_id = Column(Integer, ForeignKey(
+        "users.id", ondelete="SET NULL"), nullable=True)
+
     clan_id = Column(Integer, ForeignKey("clans.id"), nullable=False)
     county_id = Column(Integer, ForeignKey("counties.id"), nullable=False)
 
@@ -69,4 +71,3 @@ class Reservation(Base):
         "HaiaCommittee", back_populates="reservations", lazy="select")
     madaeh_committee = relationship(
         "MadaehCommittee", back_populates="reservations", lazy="select")
- 
