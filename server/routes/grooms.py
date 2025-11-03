@@ -150,7 +150,7 @@ def update_profile(
     return current
 
 
-@router.delete("/profile", response_model=dict, dependencies=[Depends(groom_required)])
+@router.delete("/profile", dependencies=[Depends(groom_required)])
 def delete_profile(
     db: Session = Depends(get_db),
     current: User = Depends(groom_required)
