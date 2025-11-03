@@ -16,7 +16,7 @@ from ..models.committee import HaiaCommittee, MadaehCommittee
 from ..models.hall import Hall
 from ..schemas.haia_committe import HaiaCreate, HaiaOut, HaiaUpdate
 from ..schemas.madaih_committe import MadaihCreate, MadaihOut, MadaihUpdate
-from ..auth_utils import get_db, require_role, get_password_hash
+from ..auth_utils import get_current_user, get_db, require_role, get_password_hash
 from ..models.user import UserRole, User, UserStatus
 from ..models.county import County
 from ..models.clan import Clan
