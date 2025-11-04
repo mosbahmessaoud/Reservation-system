@@ -250,8 +250,8 @@ async def check_clan_admin_status(
         return {
             "has_admin": False,
             "is_active": False,
-            "admin_name": None,
-            "clan_name": None,
+            "admin_name": "None-",
+            "clan_name": clan_admin.clan.name if clan_admin.clan else "None---",
             "message": "No admin account found for this clan"
         }
 
