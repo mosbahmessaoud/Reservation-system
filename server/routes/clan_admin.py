@@ -229,7 +229,7 @@ def deleted_groom(groom_phone: str, db: Session = Depends(get_db), current: User
 
 # get status of the clan admin account
 
-@router.get("/admin-status")
+@router.get("/admin-status", dependencies=[Depends(get_current_user)])
 async def check_clan_admin_status(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -261,7 +261,7 @@ async def check_clan_admin_status(
         "has_admin": True,
         "is_active": is_active,
         "admin_name": f"{clan_admin.first_name} {clan_admin.last_name}",
-        "clan_name": clan_admin.clan.name if clan_admin.clan else None,
+        "clan_name": clan_admin.clan.name if clan_admin.clan else "None---",
         "message": "Active admin found" if is_active else "Admin account is inactive"
     }
 

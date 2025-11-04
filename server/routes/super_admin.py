@@ -426,6 +426,27 @@ def update_clan_admin(admin_id: int, user_in: UserUpdate, db: Session = Depends(
 
 # --------------------------------------------------------
 
+# active and disactive the clan admin account
+
+
+@router.put("/change_status/{admin_id}", dependencies=[Depends(super_admin_required)])
+def change_clan_admin_status(admin_id: int, db: Session = Depends(get_db)):
+    clan_admin = db.query(User).filter(
+        User.id == admin_id,
+        User.role == UserRole.clan_admin
+    ).first()
+
+    if not clan_admin:
+        raise HTTPException(
+            status_code=404, detail=f"clan admin with this id {admin_id} not found !! ")
+    if clan_admin.status == UserStatus.active:
+        clan_admin.status = UserStatus.inactive
+    else:
+        clan_admin.status = UserStatus.active
+
+    db.commit()
+    db.refresh(clan_admin)
+    return {"message": f"the clan admin account with this id {admin_id} is now {clan_admin.status} "}
 ########################### haia CRUD ############################
 
 # post new haia
