@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
+from sqlalchemy.orm import joinedload
 
 from server.models.food import FoodMenu
 from server.utils.otp_utils import generate_otp_code
@@ -437,7 +438,10 @@ async def check_clan_admin_status(
     Returns whether admin exists and is active.
     """
     # Find clan admin for this clan
-    clan_admin = db.query(User).filter(
+    clan_admin = db.query(User).options(
+        joinedload(User.clan),
+
+    ).filter(
         User.clan_id == clan_id,
         User.role == UserRole.clan_admin
     ).first()
@@ -447,6 +451,7 @@ async def check_clan_admin_status(
             "has_admin": False,
             "is_active": False,
             "admin_name": None,
+            "clan_name": None,
             "message": "No admin account found for this clan"
         }
 
@@ -456,6 +461,7 @@ async def check_clan_admin_status(
         "has_admin": True,
         "is_active": is_active,
         "admin_name": f"{clan_admin.first_name} {clan_admin.last_name}",
+        "clan_name": clan_admin.clan.name if clan_admin.clan else None,
         "message": "Active admin found" if is_active else "Admin account is inactive"
     }
 
