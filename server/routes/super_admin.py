@@ -426,45 +426,6 @@ def update_clan_admin(admin_id: int, user_in: UserUpdate, db: Session = Depends(
 
 # --------------------------------------------------------
 
-
-@router.get("/clans_admin/{clan_id}/admin-status")
-async def check_clan_admin_status(
-    clan_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """
-    Check if a clan has an active admin account.
-    Returns whether admin exists and is active.
-    """
-    # Find clan admin for this clan
-    clan_admin = db.query(User).options(
-        joinedload(User.clan),
-
-    ).filter(
-        User.clan_id == clan_id,
-        User.role == UserRole.clan_admin
-    ).first()
-
-    if not clan_admin:
-        return {
-            "has_admin": False,
-            "is_active": False,
-            "admin_name": None,
-            "clan_name": None,
-            "message": "No admin account found for this clan"
-        }
-
-    is_active = clan_admin.status == UserStatus.active
-
-    return {
-        "has_admin": True,
-        "is_active": is_active,
-        "admin_name": f"{clan_admin.first_name} {clan_admin.last_name}",
-        "clan_name": clan_admin.clan.name if clan_admin.clan else None,
-        "message": "Active admin found" if is_active else "Admin account is inactive"
-    }
-
 ########################### haia CRUD ############################
 
 # post new haia
