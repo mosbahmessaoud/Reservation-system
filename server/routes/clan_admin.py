@@ -246,12 +246,19 @@ async def check_clan_admin_status(
         User.role == UserRole.clan_admin
     ).first()
 
+    # Load current user's clan if needed
+    if current_user.clan_id:
+        current_user_clan = db.query(Clan).filter(
+            Clan.id == current_user.clan_id).first()
+    else:
+        current_user_clan = None
+
     if not clan_admin:
         return {
             "has_admin": False,
             "is_active": False,
             "admin_name": "None-",
-            "clan_name": clan_admin.clan.name if clan_admin.clan else "None---",
+            "clan_name": current_user_clan.name if current_user_clan else "None--",
             "message": "No admin account found for this clan"
         }
 
@@ -261,7 +268,7 @@ async def check_clan_admin_status(
         "has_admin": True,
         "is_active": is_active,
         "admin_name": f"{clan_admin.first_name} {clan_admin.last_name}",
-        "clan_name": clan_admin.clan.name if clan_admin.clan else "None---",
+        "clan_name": clan_admin.clan.name if clan_admin.clan else "None--",
         "message": "Active admin found" if is_active else "Admin account is inactive"
     }
 
