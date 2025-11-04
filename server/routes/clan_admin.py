@@ -231,7 +231,6 @@ def deleted_groom(groom_phone: str, db: Session = Depends(get_db), current: User
 
 @router.get("/admin-status")
 async def check_clan_admin_status(
-    clan_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
