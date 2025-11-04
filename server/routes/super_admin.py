@@ -426,10 +426,34 @@ def update_clan_admin(admin_id: int, user_in: UserUpdate, db: Session = Depends(
 
 # --------------------------------------------------------
 
+
+# Get clan admin by ID
+@router.get("/clan-admins/detail/{admin_id}", response_model=UserOut, dependencies=[Depends(super_admin_required)])
+def get_clan_admin_by_id(admin_id: int, db: Session = Depends(get_db)):
+    """
+    Get a specific clan admin by ID.
+    - Only Super Admin can access this.
+    """
+    admin = db.query(User).filter(
+        and_(
+            User.id == admin_id,
+            User.role == UserRole.clan_admin
+        )
+    ).first()
+
+    if not admin:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Clan admin with id {admin_id} not found"
+        )
+
+    return admin
+
+
 # active and disactive the clan admin account
 
 
-@router.put("/change_status/{admin_id}", dependencies=[Depends(super_admin_required)])
+@router.put("/change_status/{admin_id}", response_model=UserOut, dependencies=[Depends(super_admin_required)])
 def change_clan_admin_status(admin_id: int, db: Session = Depends(get_db)):
     clan_admin = db.query(User).filter(
         User.id == admin_id,
@@ -439,6 +463,7 @@ def change_clan_admin_status(admin_id: int, db: Session = Depends(get_db)):
     if not clan_admin:
         raise HTTPException(
             status_code=404, detail=f"clan admin with this id {admin_id} not found !! ")
+
     if clan_admin.status == UserStatus.active:
         clan_admin.status = UserStatus.inactive
     else:
@@ -446,7 +471,9 @@ def change_clan_admin_status(admin_id: int, db: Session = Depends(get_db)):
 
     db.commit()
     db.refresh(clan_admin)
-    return {"message": f"the clan admin account with this id {admin_id} is now {clan_admin.status} "}
+
+    # Return the full user object instead of just a message
+    return clan_admin
 ########################### haia CRUD ############################
 
 # post new haia
