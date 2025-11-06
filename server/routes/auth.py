@@ -15,16 +15,20 @@ from server.models.county import County
 from server.schemas.user import UpdateGroomRequest, UserCreate, UserOut
 from server.schemas.auth import LoginRequest, RegisterResponse, Token
 from server.utils.otp_utils import send_otp_to_user_by_twilo, generate_otp_code, verify_otp
-from server.routes.grooms import groom_required
 from server.utils.phone_utils import validate_algerian_number, validate_number_phone, validate_number_phone_of_guardian
-from server.routes.clan_admin import clan_admin_required
+
 from .. import auth_utils
 from ..db import get_db
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+super_admin_required = auth_utils.require_role([UserRole.super_admin])
+clan_admin_required = auth_utils.require_role([UserRole.clan_admin])
+groom_required = auth_utils.require_role([UserRole.groom])
 
 # get role of the user
+
+
 @router.get("/get_role", response_model=UserOut)
 def get_user_role(
     db: Session = Depends(get_db),
@@ -388,10 +392,29 @@ def verify_new_phone(
     return {"message": "تم تحديث رقم الهاتف وتأكيده بنجاح."}
 
 
-# get users OTP code for admins
-@router.get("/get_otp/{phone_number}")
+# get users OTP code for super admin
+@router.get("/get_otp/{phone_number}", dependencies=[Depends(super_admin_required)])
 def get_otp_code(phone_number: str, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.phone_number == phone_number).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="المستخدم غير موجود")
+
+    if not user.otp_code:
+        raise HTTPException(
+            status_code=404, detail="لا يوجد رمز تحقق لهذا المستخدم")
+
+    return {"otp_code": user.otp_code}
+
+# get users OTP code for Clan admin
+
+
+@router.get("/clan_admin/get_otp/{phone_number}", dependencies=[Depends(clan_admin_required)])
+def get_otp_code(phone_number: str, db: Session = Depends(get_db), current: User = Depends(clan_admin_required)):
+    user = db.query(User).filter(
+        User.clan_id == current.clan_id,
+        User.phone_number == phone_number,
+    ).first()
 
     if not user:
         raise HTTPException(status_code=404, detail="المستخدم غير موجود")

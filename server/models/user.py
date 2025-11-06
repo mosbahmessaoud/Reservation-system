@@ -17,7 +17,7 @@ class UserRole(str, enum.Enum):
 
 class UserStatus(str, enum.Enum):
     active = "active"
-    inactive = "inactive"  # Changed from "not_active" to "inactive"
+    inactive = "inactive" 
 
 
 class User(Base):
