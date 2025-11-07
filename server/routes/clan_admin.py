@@ -373,7 +373,7 @@ def get_settings(db: Session = Depends(get_db), current: User = Depends(get_curr
     return db.query(ClanSettings).filter(ClanSettings.clan_id == current.clan_id).first()
 
 
-@router.get("/setings/{clan_id}", response_model=ClanSettingsOut, dependencies=[Depends(get_current_user)])
+@router.get("/setings/{clan_id}", response_model=ClanSettingsOut)
 def get_settings(clan_id: int, db: Session = Depends(get_db)):
 
     return db.query(ClanSettings).filter(ClanSettings.clan_id == clan_id).first()
