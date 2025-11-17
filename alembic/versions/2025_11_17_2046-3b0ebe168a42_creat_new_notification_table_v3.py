@@ -1,20 +1,20 @@
-""" creat new notification table v2 
+""" creat new notification table v3 
 
-Revision ID: b39fff583db9
-Revises: 48c6b9627a3f
-Create Date: 2025-11-17 20:02:21.030206
+Revision ID: 3b0ebe168a42
+Revises: 
+Create Date: 2025-11-17 20:46:20.899019
 
 """
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
+from sqlalchemy.dialects import postgresql  # ← ADD THIS LINE
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'b39fff583db9'
-down_revision: Union[str, None] = '48c6b9627a3f'
+revision: str = '3b0ebe168a42'
+down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
