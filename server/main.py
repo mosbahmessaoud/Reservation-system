@@ -296,7 +296,7 @@ app = FastAPI(
     title="Wedding Reservation API",
     version="1.0.0",
     docs_url="/docs" if not IS_PRODUCTION else None,
-    redoc_url="/redoc" if not IS_PRODUCTION else None,
+    redoc_url="/redoc",
     lifespan=lifespan
 )
 
