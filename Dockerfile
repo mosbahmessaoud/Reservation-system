@@ -22,9 +22,10 @@ COPY alembic/ ./alembic/
 # Copy application
 COPY server/ ./server/
 
+# Don't copy .env - Railway provides environment variables
+
 RUN mkdir -p /app/generated_pdfs && chmod 777 /app/generated_pdfs
 
 EXPOSE 8000
 
-# Your main.py handles migrations automatically
-CMD ["python", "-m", "server.main"]
+CMD ["uvicorn", "server.main:app", "--host", "0.0.0.0", "--port", "8000"]
