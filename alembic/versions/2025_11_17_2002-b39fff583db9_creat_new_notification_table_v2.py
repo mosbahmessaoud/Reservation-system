@@ -1,8 +1,8 @@
-""" create new notification table with is_groom and general_notification
+""" creat new notification table v2 
 
-Revision ID: 48c6b9627a3f
-Revises: 
-Create Date: 2025-11-17 19:04:36.384472
+Revision ID: b39fff583db9
+Revises: 48c6b9627a3f
+Create Date: 2025-11-17 20:02:21.030206
 
 """
 from typing import Sequence, Union
@@ -11,9 +11,10 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
+
 # revision identifiers, used by Alembic.
-revision: str = '48c6b9627a3f'
-down_revision: Union[str, None] = None
+revision: str = 'b39fff583db9'
+down_revision: Union[str, None] = '48c6b9627a3f'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
