@@ -1,1 +1,1 @@
-web: cd backend && alembic downgrade head && python -m uvicorn server.main:app --host 0.0.0.0 --port $PORT --workers 2
+web: cd backend && alembic downgrade && python -m uvicorn server.main:app --host 0.0.0.0 --port $PORT --workers 2
