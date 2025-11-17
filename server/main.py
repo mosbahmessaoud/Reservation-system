@@ -35,8 +35,7 @@ from .routes import (
     food_route,
     public_routes,
     admin_utils,
-    pdf_route,
-    notification
+    pdf_route
 )
 
 load_dotenv()
@@ -297,7 +296,7 @@ app = FastAPI(
     title="Wedding Reservation API",
     version="1.0.0",
     docs_url="/docs" if not IS_PRODUCTION else None,
-    redoc_url="/redoc",
+    redoc_url="/redoc" if not IS_PRODUCTION else None,
     lifespan=lifespan
 )
 
@@ -352,7 +351,6 @@ app.include_router(grooms.router)
 app.include_router(food_route.router)
 app.include_router(public_routes.router)
 app.include_router(pdf_route.router)
-app.include_router(notification.router)
 
 
 if __name__ == "__main__":
