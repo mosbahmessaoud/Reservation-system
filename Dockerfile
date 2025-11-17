@@ -25,11 +25,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY alembic.ini .
 COPY alembic/ ./alembic/
 
+# Copy reset script
+COPY reset_alembic.py .
+
 # Copy application code
 COPY server/ ./server/
 
-# Copy any other necessary files
-COPY .env* ./
+# Copy any other necessary files (if .env exists)
+COPY .env* ./ 
 
 # Create directory for generated PDFs
 RUN mkdir -p /app/generated_pdfs && chmod 777 /app/generated_pdfs
