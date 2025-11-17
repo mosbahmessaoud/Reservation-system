@@ -1,10 +1,7 @@
-# Use Python 3.11 slim image
 FROM python:3.11-slim
 
-# Set working directory
 WORKDIR /app
 
-# Install system dependencies including LibreOffice
 RUN apt-get update && apt-get install -y \
     gcc \
     postgresql-client \
@@ -15,20 +12,19 @@ RUN apt-get update && apt-get install -y \
     fonts-dejavu \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
 COPY requirements.txt .
-
-# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY . .
+# Copy alembic files
+COPY alembic.ini .
+COPY alembic/ ./alembic/
 
-# Create directory for generated PDFs
+# Copy application
+COPY server/ ./server/
+
 RUN mkdir -p /app/generated_pdfs && chmod 777 /app/generated_pdfs
 
-# Expose port
 EXPOSE 8000
 
-# Start command
-CMD uvicorn server.main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Your main.py handles migrations automatically
+CMD ["python", "-m", "server.main"]
