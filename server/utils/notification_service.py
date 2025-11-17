@@ -4,9 +4,9 @@ from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import datetime
 
-from ..models.notification import Notification, NotificationType
-from ..models.user import User, UserRole
-from ..models.reservation import Reservation
+from server.models.notification import Notification, NotificationType
+from server.models.user import User, UserRole
+from server.models.reservation import Reservation
 
 
 class NotificationService:

@@ -28,7 +28,7 @@ from ..models.user import User, UserRole
 from ..models.reservation import Reservation, ReservationStatus
 from ..models.clan_settings import ClanSettings
 from ..schemas.reservation import ReservationCreate, ReservationCreateResponse, ReservationOut
-from utils.notification_service import NotificationService
+from ..utils.notification_service import NotificationService
 
 from datetime import datetime, date
 from sqlalchemy import extract, func
@@ -429,14 +429,15 @@ def create_reservation(resv_in: ReservationCreate, db: Session = Depends(get_db)
         db.commit()
         db.refresh(resv)
         notification = NotificationService.create_new_reservation_notification(
-                db=db,
-                reservation=resv
-            )
+            db=db,
+            reservation=resv
+        )
         if notification:
-            logger.info(f"Notification created for clan admin: {notification.id}")
+            logger.info(
+                f"Notification created for clan admin: {notification.id}")
         else:
-            logger.warning(f"No clan admin found for clan_id {resv_in.clan_id}")
-
+            logger.warning(
+                f"No clan admin found for clan_id {resv_in.clan_id}")
 
         logger.info(
             f"Successfully created reservation {resv.id} for groom {current.id}")
