@@ -21,8 +21,15 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Copy alembic configuration (explicit)
+COPY alembic.ini .
+COPY alembic/ ./alembic/
+
 # Copy application code
-COPY . .
+COPY server/ ./server/
+
+# Copy any other necessary files
+COPY .env* ./
 
 # Create directory for generated PDFs
 RUN mkdir -p /app/generated_pdfs && chmod 777 /app/generated_pdfs
@@ -30,5 +37,5 @@ RUN mkdir -p /app/generated_pdfs && chmod 777 /app/generated_pdfs
 # Expose port
 EXPOSE 8000
 
-# Start command
-CMD uvicorn server.main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Start command (will be overridden by railway.json)
+CMD ["uvicorn", "server.main:app", "--host", "0.0.0.0", "--port", "8000"]
