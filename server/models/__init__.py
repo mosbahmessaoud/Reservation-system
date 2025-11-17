@@ -31,4 +31,7 @@ __all__ = [
     "MadaehCommittee",
     "Reservation",
     "ReservationStatus",
+    "Notification",
+    "NotificationType",
+    
 ]
