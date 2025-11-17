@@ -1,7 +1,4 @@
-"""
-Alembic environment configuration
-"""
-from server.models.reservation_clan_admin import ReservationSpecial, ReservationSpecialStatus
+from server.models.reservation_clan_admin import ReservationSpecial
 from server.models.reservation import Reservation, ReservationStatus
 from server.models.committee import HaiaCommittee, MadaehCommittee
 from server.models.food import FoodMenu
@@ -12,66 +9,50 @@ from server.models.clan import Clan
 from server.models.county import County
 from server.models.user import User, UserRole
 from server.db import Base
-from dotenv import load_dotenv
-import os
-import sys
 from logging.config import fileConfig
-
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
-
 from alembic import context
+import os
+import sys
 
-# Add parent directory to path to import server modules
+# Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-# Load environment variables
-load_dotenv()
+# Import your Base and all models (same as in main.py)
 
-# this is the Alembic Config object, which provides
-# access to the values within the .ini file in use.
+# Import ALL models
+
+# Alembic Config object
 config = context.config
 
-# Interpret the config file for Python logging.
-# This line sets up loggers basically.
+# Setup logging
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Import your Base and all models for autogenerate support
-
-# Set target metadata for autogenerate support
+# Set target metadata for autogenerate (THIS IS CRUCIAL!)
 target_metadata = Base.metadata
 
 # Get DATABASE_URL from environment
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Railway PostgreSQL fix
+# Railway fix: postgres:// → postgresql://
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 # Fallback to local database
 if not DATABASE_URL:
-    DATABASE_URL = os.getenv(
-        "LOCAL_DATABASE_URL",
-        "postgresql+psycopg2://postgres:032023@localhost:5432/wedding_db"
-    )
+    DATABASE_URL = "postgresql://postgres:0320@localhost:5432/wedding_db"
+    print(f"⚠️ Using local database")
+else:
+    print(f"✓ Using DATABASE_URL from environment")
 
-# Override sqlalchemy.url in alembic.ini
+# Override the sqlalchemy.url in alembic.ini
 config.set_main_option("sqlalchemy.url", DATABASE_URL)
 
 
 def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode.
-
-    This configures the context with just a URL
-    and not an Engine, though an Engine is acceptable
-    here as well.  By skipping the Engine creation
-    we don't even need a DBAPI to be available.
-
-    Calls to context.execute() here emit the given string to the
-    script output.
-
-    """
+    """Run migrations in 'offline' mode."""
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
@@ -79,7 +60,6 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         compare_type=True,
-        compare_server_default=True,
     )
 
     with context.begin_transaction():
@@ -87,12 +67,7 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode.
-
-    In this scenario we need to create an Engine
-    and associate a connection with the context.
-
-    """
+    """Run migrations in 'online' mode."""
     configuration = config.get_section(config.config_ini_section, {})
     configuration["sqlalchemy.url"] = DATABASE_URL
 
@@ -107,7 +82,6 @@ def run_migrations_online() -> None:
             connection=connection,
             target_metadata=target_metadata,
             compare_type=True,
-            compare_server_default=True,
         )
 
         with context.begin_transaction():
