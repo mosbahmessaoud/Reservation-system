@@ -5,7 +5,7 @@
     "dockerfilePath": "Dockerfile"
   },
   "deploy": {
-    "startCommand": "alembic stamp head && alembic upgrade head  && python -m server.main",
+    "startCommand": "python -c \"from sqlalchemy import create_engine, text; import os; engine = create_engine(os.getenv('DATABASE_URL')); with engine.connect() as conn: conn.execute(text('DELETE FROM alembic_version')); conn.commit()\" && alembic upgrade head && python -m server.main",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
