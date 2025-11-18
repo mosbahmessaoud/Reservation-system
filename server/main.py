@@ -118,6 +118,82 @@ def run_alembic_migrations():
         return False
 
 
+# def ensure_super_admin_exists():
+#     """
+#     Ensure super admin exists, create if missing.
+#     This runs on every startup to handle Railway redeployments.
+#     """
+#     db = SessionLocal()
+#     try:
+#         SUPER_ADMIN_PHONE = os.getenv("SUPER_ADMIN_PHONE", "0658890501")
+#         SUPER_ADMIN_PASSWORD = os.getenv("SUPER_ADMIN_PASSWORD")
+
+#         # Check if super admin exists
+#         super_admin = db.query(User).filter(
+#             User.phone_number == SUPER_ADMIN_PHONE,
+#             User.role == UserRole.super_admin
+#         ).first()
+
+#         if super_admin:
+#             print(f"✅ Super admin already exists: {SUPER_ADMIN_PHONE}")
+#             # Optionally update password if it changed
+#             if os.getenv("RESET_SUPER_ADMIN_PASSWORD") == "true":
+#                 super_admin.password_hash = get_password_hash(
+#                     SUPER_ADMIN_PASSWORD)
+#                 db.commit()
+#                 print("🔄 Super admin password updated")
+#             return
+
+#         # Super admin doesn't exist, check if we have required data
+#         county = db.query(County).first()
+#         if not county:
+#             print("📍 Creating default county...")
+#             county = County(name="تغردايت")
+#             db.add(county)
+#             db.commit()
+#             db.refresh(county)
+
+#         clan = db.query(Clan).filter(Clan.county_id == county.id).first()
+#         if not clan:
+#             print("🏘️ Creating default clan...")
+#             clan = Clan(name="عشيرة ات الحاج مسعود ", county_id=county.id)
+#             db.add(clan)
+#             db.commit()
+#             db.refresh(clan)
+
+#             # Create clan settings
+#             settings = ClanSettings(clan_id=clan.id)
+#             db.add(settings)
+#             db.commit()
+
+#             # Create default hall
+#             hall = Hall(name="دار " + clan.name, capacity=600, clan_id=clan.id)
+#             db.add(hall)
+#             db.commit()
+
+#         # Create super admin
+#         print(f"👤 Creating super admin: {SUPER_ADMIN_PHONE}")
+#         super_admin = User(
+#             phone_number=SUPER_ADMIN_PHONE,
+#             password_hash=get_password_hash(SUPER_ADMIN_PASSWORD),
+#             role=UserRole.super_admin,
+#             phone_verified=True,
+#             first_name="Super",
+#             last_name="Admin",
+#             father_name="Root",
+#             grandfather_name="Root",
+#         )
+#         db.add(super_admin)
+#         db.commit()
+#         print(f"✅ Super admin created successfully: {SUPER_ADMIN_PHONE}")
+
+#     except Exception as e:
+#         print(f"❌ Error ensuring super admin: {e}")
+#         import traceback
+#         traceback.print_exc()
+#         db.rollback()
+#     finally:
+#         db.close()
 def ensure_super_admin_exists():
     """
     Ensure super admin exists, create if missing.
@@ -127,6 +203,10 @@ def ensure_super_admin_exists():
     try:
         SUPER_ADMIN_PHONE = os.getenv("SUPER_ADMIN_PHONE", "0658890501")
         SUPER_ADMIN_PASSWORD = os.getenv("SUPER_ADMIN_PASSWORD")
+
+        if not SUPER_ADMIN_PASSWORD:
+            print("⚠️ WARNING: SUPER_ADMIN_PASSWORD not set in environment!")
+            return
 
         # Check if super admin exists
         super_admin = db.query(User).filter(
@@ -147,7 +227,7 @@ def ensure_super_admin_exists():
         # Super admin doesn't exist, check if we have required data
         county = db.query(County).first()
         if not county:
-            print("📍 Creating default county...")
+            print("🏛️ Creating default county...")
             county = County(name="تغردايت")
             db.add(county)
             db.commit()
@@ -192,6 +272,7 @@ def ensure_super_admin_exists():
         import traceback
         traceback.print_exc()
         db.rollback()
+        # Don't raise - allow app to continue even if super admin creation fails
     finally:
         db.close()
 
@@ -251,6 +332,54 @@ def seed_initial_data():
         db.close()
 
 
+# @asynccontextmanager
+# async def lifespan(app: FastAPI):
+#     # Startup
+#     print("=" * 60)
+#     print(f"🚀 Starting in {ENVIRONMENT} mode...")
+#     print(f"📊 Database URL: {os.getenv('DATABASE_URL', 'Not set')[:50]}...")
+#     print("=" * 60)
+
+#     try:
+#         # Initialize volume storage first
+#         print("\n📦 Initializing storage...")
+#         volume_ready = initialize_volume_storage()
+#         if not volume_ready and IS_PRODUCTION:
+#             print("⚠️ WARNING: Running in production without persistent storage!")
+
+#         # Run Alembic migrations
+#         print("\n🔄 Running database migrations...")
+#         migration_success = run_alembic_migrations()
+
+#         if not migration_success and not IS_PRODUCTION:
+#             # Fallback to create_all only in development if migrations fail
+#             print("⚠️ Migrations failed, falling back to create_all...")
+#             Base.metadata.create_all(bind=engine)
+#             print("✅ Database tables created/verified")
+
+#         # Always ensure super admin exists (important for Railway)
+#         print("\n👤 Checking super admin...")
+#         ensure_super_admin_exists()
+
+#         # Seed initial data only if database is empty
+#         print("\n🌱 Checking initial data...")
+#         seed_initial_data()
+
+#         print("\n" + "=" * 60)
+#         print("✅ Application ready!")
+#         print("=" * 60)
+
+#     except Exception as e:
+#         print(f"\n❌ Startup error: {e}")
+#         import traceback
+#         traceback.print_exc()
+
+#     yield
+
+#     # Shutdown
+#     print("\n👋 Shutting down...")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
@@ -266,23 +395,28 @@ async def lifespan(app: FastAPI):
         if not volume_ready and IS_PRODUCTION:
             print("⚠️ WARNING: Running in production without persistent storage!")
 
-        # Run Alembic migrations
+        # Run Alembic migrations FIRST - before any database queries
         print("\n🔄 Running database migrations...")
         migration_success = run_alembic_migrations()
 
-        if not migration_success and not IS_PRODUCTION:
-            # Fallback to create_all only in development if migrations fail
-            print("⚠️ Migrations failed, falling back to create_all...")
-            Base.metadata.create_all(bind=engine)
-            print("✅ Database tables created/verified")
+        if not migration_success:
+            if IS_PRODUCTION:
+                print("❌ CRITICAL: Migrations failed in production!")
+                raise Exception(
+                    "Database migration failed - cannot start application")
+            else:
+                # Fallback to create_all only in development
+                print("⚠️ Migrations failed, falling back to create_all...")
+                Base.metadata.create_all(bind=engine)
+                print("✅ Database tables created/verified")
 
-        # Always ensure super admin exists (important for Railway)
+        # Seed initial data only if database is empty (after super admin check)
+        # print("\n🌱 Checking initial data...")
+        # seed_initial_data()
+
+        # ONLY AFTER migrations are complete, check/create super admin
         print("\n👤 Checking super admin...")
         ensure_super_admin_exists()
-
-        # Seed initial data only if database is empty
-        print("\n🌱 Checking initial data...")
-        seed_initial_data()
 
         print("\n" + "=" * 60)
         print("✅ Application ready!")
@@ -292,6 +426,9 @@ async def lifespan(app: FastAPI):
         print(f"\n❌ Startup error: {e}")
         import traceback
         traceback.print_exc()
+        if IS_PRODUCTION:
+            # In production, fail fast if startup fails
+            raise
 
     yield
 
