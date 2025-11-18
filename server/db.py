@@ -26,10 +26,17 @@ if not DATABASE_URL:
     )
     print(f"⚠️ Using local database: {DATABASE_URL[:40]}...")
 
-# Engine configuration
+# Engine configuration with better timeout settings
 engine_kwargs = {
     "pool_pre_ping": True,
     "pool_recycle": 3600,
+    "connect_args": {
+        "connect_timeout": 30,  # 30 seconds timeout
+        "keepalives": 1,
+        "keepalives_idle": 30,
+        "keepalives_interval": 10,
+        "keepalives_count": 5,
+    }
 }
 
 if DATABASE_URL.startswith("sqlite"):
@@ -58,14 +65,3 @@ def get_db():
         yield db
     finally:
         db.close()
-
-# def test_connection():
-#     """Test database connection"""
-#     try:
-#         with engine.connect() as conn:
-#             conn.execute(text("SELECT 1"))
-#         print("✅ Database connected successfully")
-#         return True
-#     except Exception as e:
-#         print(f"❌ Database connection failed: {e}")
-#         return False

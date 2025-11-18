@@ -88,11 +88,43 @@ def initialize_volume_storage():
         return False
 
 
+# def run_alembic_migrations():
+#     """
+#     Run Alembic migrations programmatically
+#     This is safer than Base.metadata.create_all() in production
+#     """
+#     try:
+#         from alembic.config import Config
+#         from alembic import command
+#         import os
+
+#         # Get the directory containing this file
+#         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+#         alembic_ini_path = os.path.join(base_dir, "alembic.ini")
+
+#         if not os.path.exists(alembic_ini_path):
+#             print("⚠️ alembic.ini not found, skipping migrations")
+#             return False
+
+#         print("🔄 Running Alembic migrations...")
+#         alembic_cfg = Config(alembic_ini_path)
+#         command.upgrade(alembic_cfg, "head")
+#         print("✅ Migrations completed successfully")
+#         return True
+#     except Exception as e:
+#         print(f"❌ Migration error: {e}")
+#         import traceback
+#         traceback.print_exc()
+#         return False
+
 def run_alembic_migrations():
     """
-    Run Alembic migrations programmatically
+    Run Alembic migrations programmatically with retry logic
     This is safer than Base.metadata.create_all() in production
     """
+    import time
+    from sqlalchemy.exc import OperationalError
+
     try:
         from alembic.config import Config
         from alembic import command
@@ -108,9 +140,30 @@ def run_alembic_migrations():
 
         print("🔄 Running Alembic migrations...")
         alembic_cfg = Config(alembic_ini_path)
-        command.upgrade(alembic_cfg, "head")
-        print("✅ Migrations completed successfully")
-        return True
+
+        # Retry logic for database connection
+        max_retries = 5
+        retry_delay = 5
+
+        for attempt in range(max_retries):
+            try:
+                command.upgrade(alembic_cfg, "head")
+                print("✅ Migrations completed successfully")
+                return True
+            except OperationalError as e:
+                if "Connection timed out" in str(e) or "could not connect" in str(e):
+                    if attempt < max_retries - 1:
+                        print(
+                            f"⚠️ Database connection failed (attempt {attempt + 1}/{max_retries})")
+                        print(f"   Retrying in {retry_delay} seconds...")
+                        time.sleep(retry_delay)
+                    else:
+                        print(
+                            f"❌ Database connection failed after {max_retries} attempts")
+                        raise
+                else:
+                    raise
+
     except Exception as e:
         print(f"❌ Migration error: {e}")
         import traceback
