@@ -9,19 +9,17 @@ from server.models.clan import Clan
 from server.models.county import County
 from server.models.user import User, UserRole
 from server.db import Base
+import os
+import sys
 from logging.config import fileConfig
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from alembic import context
-import os
-import sys
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-# Import your Base and all models (same as in main.py)
-
-# Import ALL models
+# Import your Base and all models
 
 # Alembic Config object
 config = context.config
@@ -39,13 +37,13 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 # Railway fix: postgres:// → postgresql://
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-
-# Fallback to local database
-if not DATABASE_URL:
-    DATABASE_URL = "postgresql://postgres:0320@localhost:5432/wedding_db"
-    print(f"⚠️ Using local database")
+    print(f"✅ Using Railway DATABASE_URL (fixed postgres:// → postgresql://)")
+elif DATABASE_URL:
+    print(f"✅ Using DATABASE_URL from environment")
 else:
-    print(f"✓ Using DATABASE_URL from environment")
+    # Fallback to local database
+    DATABASE_URL = "postgresql://postgres:0320@localhost:5432/wedding_db"
+    print(f"⚠️ DATABASE_URL not found, using local database")
 
 # Override the sqlalchemy.url in alembic.ini
 config.set_main_option("sqlalchemy.url", DATABASE_URL)
