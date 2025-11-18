@@ -1,5 +1,5 @@
 """
-FastAPI app entry point with Railway Volume support
+FastAPI app entry point with Railway Volume support and local development database
 """
 import os
 from contextlib import asynccontextmanager
@@ -41,14 +41,42 @@ from .routes import (
     admin_utils,
     pdf_route,
     notification
-
-
 )
 
 load_dotenv()
 
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 IS_PRODUCTION = ENVIRONMENT == "production"
+
+def get_database_url():
+    """
+    Get the appropriate database URL based on environment
+    """
+    if IS_PRODUCTION:
+        db_url = os.getenv("DATABASE_URL")
+        print(f"🔴 Using PRODUCTION database")
+        if not db_url:
+            raise ValueError("DATABASE_URL not set in production!")
+    else:
+        db_url = os.getenv("LOCAL_DATABASE_URL")
+        if not db_url:
+            print("⚠️ LOCAL_DATABASE_URL not set, falling back to DATABASE_URL")
+            db_url = os.getenv("DATABASE_URL")
+        else:
+            print(f"🟢 Using LOCAL development database")
+
+    if not db_url:
+        raise ValueError("No database URL configured!")
+
+    # Railway PostgreSQL uses postgres:// but SQLAlchemy needs postgresql://
+    if db_url.startswith("postgres://"):
+        db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+    # Mask password in logs
+    masked_url = re.sub(r'://([^:]+):([^@]+)@', r'://\1:****@', db_url)
+    print(f"📊 Database: {masked_url}")
+
+    return db_url
 
 
 def initialize_volume_storage():
@@ -57,29 +85,37 @@ def initialize_volume_storage():
     Creates necessary directories on startup
     """
     try:
-        RAILWAY_VOLUME_PATH = os.getenv("RAILWAY_VOLUME_MOUNT_PATH", "/data")
-        UPLOAD_DIR = Path(RAILWAY_VOLUME_PATH) / "uploads" / "pdfs"
+        if IS_PRODUCTION:
+            RAILWAY_VOLUME_PATH = os.getenv(
+                "RAILWAY_VOLUME_MOUNT_PATH", "/data")
+            UPLOAD_DIR = Path(RAILWAY_VOLUME_PATH) / "uploads" / "pdfs"
 
-        if os.path.exists(RAILWAY_VOLUME_PATH):
-            print(f"✅ Railway volume found at: {RAILWAY_VOLUME_PATH}")
-            UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-            print(f"✅ Upload directory ready: {UPLOAD_DIR}")
+            if os.path.exists(RAILWAY_VOLUME_PATH):
+                print(f"✅ Railway volume found at: {RAILWAY_VOLUME_PATH}")
+                UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+                print(f"✅ Upload directory ready: {UPLOAD_DIR}")
 
-            # Check write permissions
-            test_file = UPLOAD_DIR / ".test"
-            try:
-                test_file.write_text("test")
-                test_file.unlink()
-                print("✅ Volume is writable")
-            except Exception as e:
-                print(f"⚠️ Warning: Volume may not be writable: {e}")
+                # Check write permissions
+                test_file = UPLOAD_DIR / ".test"
+                try:
+                    test_file.write_text("test")
+                    test_file.unlink()
+                    print("✅ Volume is writable")
+                except Exception as e:
+                    print(f"⚠️ Warning: Volume may not be writable: {e}")
 
-            return True
+                return True
+            else:
+                print(f"⚠️ Railway volume not found at {RAILWAY_VOLUME_PATH}")
+                print("⚠️ Using temporary storage - files will be lost on redeploy")
+                print("💡 To fix: Add a volume in Railway dashboard mounted at /data")
+                return False
         else:
-            print(f"⚠️ Railway volume not found at {RAILWAY_VOLUME_PATH}")
-            print("⚠️ Using temporary storage - files will be lost on redeploy")
-            print("💡 To fix: Add a volume in Railway dashboard mounted at /data")
-            return False
+            # Development mode - use local temp directory
+            UPLOAD_DIR = Path("./temp_uploads/pdfs")
+            UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+            print(f"✅ Local upload directory ready: {UPLOAD_DIR}")
+            return True
 
     except Exception as e:
         print(f"❌ Error initializing volume storage: {e}")
@@ -118,82 +154,6 @@ def run_alembic_migrations():
         return False
 
 
-# def ensure_super_admin_exists():
-#     """
-#     Ensure super admin exists, create if missing.
-#     This runs on every startup to handle Railway redeployments.
-#     """
-#     db = SessionLocal()
-#     try:
-#         SUPER_ADMIN_PHONE = os.getenv("SUPER_ADMIN_PHONE", "0658890501")
-#         SUPER_ADMIN_PASSWORD = os.getenv("SUPER_ADMIN_PASSWORD")
-
-#         # Check if super admin exists
-#         super_admin = db.query(User).filter(
-#             User.phone_number == SUPER_ADMIN_PHONE,
-#             User.role == UserRole.super_admin
-#         ).first()
-
-#         if super_admin:
-#             print(f"✅ Super admin already exists: {SUPER_ADMIN_PHONE}")
-#             # Optionally update password if it changed
-#             if os.getenv("RESET_SUPER_ADMIN_PASSWORD") == "true":
-#                 super_admin.password_hash = get_password_hash(
-#                     SUPER_ADMIN_PASSWORD)
-#                 db.commit()
-#                 print("🔄 Super admin password updated")
-#             return
-
-#         # Super admin doesn't exist, check if we have required data
-#         county = db.query(County).first()
-#         if not county:
-#             print("📍 Creating default county...")
-#             county = County(name="تغردايت")
-#             db.add(county)
-#             db.commit()
-#             db.refresh(county)
-
-#         clan = db.query(Clan).filter(Clan.county_id == county.id).first()
-#         if not clan:
-#             print("🏘️ Creating default clan...")
-#             clan = Clan(name="عشيرة ات الحاج مسعود ", county_id=county.id)
-#             db.add(clan)
-#             db.commit()
-#             db.refresh(clan)
-
-#             # Create clan settings
-#             settings = ClanSettings(clan_id=clan.id)
-#             db.add(settings)
-#             db.commit()
-
-#             # Create default hall
-#             hall = Hall(name="دار " + clan.name, capacity=600, clan_id=clan.id)
-#             db.add(hall)
-#             db.commit()
-
-#         # Create super admin
-#         print(f"👤 Creating super admin: {SUPER_ADMIN_PHONE}")
-#         super_admin = User(
-#             phone_number=SUPER_ADMIN_PHONE,
-#             password_hash=get_password_hash(SUPER_ADMIN_PASSWORD),
-#             role=UserRole.super_admin,
-#             phone_verified=True,
-#             first_name="Super",
-#             last_name="Admin",
-#             father_name="Root",
-#             grandfather_name="Root",
-#         )
-#         db.add(super_admin)
-#         db.commit()
-#         print(f"✅ Super admin created successfully: {SUPER_ADMIN_PHONE}")
-
-#     except Exception as e:
-#         print(f"❌ Error ensuring super admin: {e}")
-#         import traceback
-#         traceback.print_exc()
-#         db.rollback()
-#     finally:
-#         db.close()
 def ensure_super_admin_exists():
     """
     Ensure super admin exists, create if missing.
@@ -272,7 +232,6 @@ def ensure_super_admin_exists():
         import traceback
         traceback.print_exc()
         db.rollback()
-        # Don't raise - allow app to continue even if super admin creation fails
     finally:
         db.close()
 
@@ -332,60 +291,12 @@ def seed_initial_data():
         db.close()
 
 
-# @asynccontextmanager
-# async def lifespan(app: FastAPI):
-#     # Startup
-#     print("=" * 60)
-#     print(f"🚀 Starting in {ENVIRONMENT} mode...")
-#     print(f"📊 Database URL: {os.getenv('DATABASE_URL', 'Not set')[:50]}...")
-#     print("=" * 60)
-
-#     try:
-#         # Initialize volume storage first
-#         print("\n📦 Initializing storage...")
-#         volume_ready = initialize_volume_storage()
-#         if not volume_ready and IS_PRODUCTION:
-#             print("⚠️ WARNING: Running in production without persistent storage!")
-
-#         # Run Alembic migrations
-#         print("\n🔄 Running database migrations...")
-#         migration_success = run_alembic_migrations()
-
-#         if not migration_success and not IS_PRODUCTION:
-#             # Fallback to create_all only in development if migrations fail
-#             print("⚠️ Migrations failed, falling back to create_all...")
-#             Base.metadata.create_all(bind=engine)
-#             print("✅ Database tables created/verified")
-
-#         # Always ensure super admin exists (important for Railway)
-#         print("\n👤 Checking super admin...")
-#         ensure_super_admin_exists()
-
-#         # Seed initial data only if database is empty
-#         print("\n🌱 Checking initial data...")
-#         seed_initial_data()
-
-#         print("\n" + "=" * 60)
-#         print("✅ Application ready!")
-#         print("=" * 60)
-
-#     except Exception as e:
-#         print(f"\n❌ Startup error: {e}")
-#         import traceback
-#         traceback.print_exc()
-
-#     yield
-
-#     # Shutdown
-#     print("\n👋 Shutting down...")
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     print("=" * 60)
     print(f"🚀 Starting in {ENVIRONMENT} mode...")
-    print(f"📊 Database URL: {os.getenv('DATABASE_URL', 'Not set')[:50]}...")
+    get_database_url()  # This will print the database info
     print("=" * 60)
 
     try:
@@ -410,16 +321,15 @@ async def lifespan(app: FastAPI):
                 Base.metadata.create_all(bind=engine)
                 print("✅ Database tables created/verified")
 
-        # Seed initial data only if database is empty (after super admin check)
-        # print("\n🌱 Checking initial data...")
-        # seed_initial_data()
-
         # ONLY AFTER migrations are complete, check/create super admin
         print("\n👤 Checking super admin...")
         ensure_super_admin_exists()
 
         print("\n" + "=" * 60)
         print("✅ Application ready!")
+        print(f"🌍 Environment: {ENVIRONMENT}")
+        print(f"📍 Server: http://127.0.0.1:8000")
+        print(f"📚 Docs: http://127.0.0.1:8000/docs" if not IS_PRODUCTION else "📚 Docs: Disabled in production")
         print("=" * 60)
 
     except Exception as e:
@@ -461,7 +371,7 @@ async def root():
         "status": "ok",
         "message": "Wedding Reservation API",
         "environment": ENVIRONMENT,
-        "docs": "/docs"
+        "docs": "/docs" if not IS_PRODUCTION else None
     }
 
 
@@ -471,17 +381,26 @@ async def health_check():
     import os
     from pathlib import Path
 
-    RAILWAY_VOLUME_PATH = os.getenv("RAILWAY_VOLUME_MOUNT_PATH", "/data")
-    volume_mounted = os.path.exists(RAILWAY_VOLUME_PATH)
+    if IS_PRODUCTION:
+        RAILWAY_VOLUME_PATH = os.getenv("RAILWAY_VOLUME_MOUNT_PATH", "/data")
+        volume_mounted = os.path.exists(RAILWAY_VOLUME_PATH)
+        storage_info = {
+            "volume_mounted": volume_mounted,
+            "volume_path": RAILWAY_VOLUME_PATH if volume_mounted else "not mounted"
+        }
+    else:
+        storage_info = {
+            "volume_mounted": False,
+            "storage_path": "./temp_uploads",
+            "note": "Using local development storage"
+        }
 
     return {
         "status": "healthy",
         "message": "Wedding Reservation API is running",
         "environment": ENVIRONMENT,
-        "storage": {
-            "volume_mounted": volume_mounted,
-            "volume_path": RAILWAY_VOLUME_PATH if volume_mounted else "not mounted"
-        }
+        "database": "local" if not IS_PRODUCTION else "railway",
+        "storage": storage_info
     }
 
 

@@ -10,16 +10,17 @@ from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
-
 # Get DATABASE_URL from environment
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Railway PostgreSQL fix
+# Railway PostgreSQL fix - CRITICAL!
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# Fallback to local database
+# Only fall back to local in development
 if not DATABASE_URL:
+    if os.getenv("ENVIRONMENT") == "production":
+        raise ValueError("DATABASE_URL not set in production!")
     DATABASE_URL = os.getenv(
         "LOCAL_DATABASE_URL",
         "postgresql+psycopg2://postgres:032023@localhost:5432/wedding_db"
