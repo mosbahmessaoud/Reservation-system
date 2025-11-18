@@ -1,5 +1,5 @@
 import asyncio
-from backend.server.models.user import User
+from server.models.user import User
 from server.db import get_db, users_table
 from server.auth_utils import get_password_hash
 

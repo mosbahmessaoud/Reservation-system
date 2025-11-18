@@ -7,6 +7,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+import re
 from sqlalchemy import text
 
 from server.routes import pdf_route
@@ -24,6 +25,9 @@ from .models.clan_rules import ClanRules
 from .models.food import FoodMenu
 from .models.committee import HaiaCommittee, MadaehCommittee
 from .models.reservation import Reservation, ReservationStatus
+from .models.reservation_clan_admin import ReservationSpecial, ReservationSpecialStatus
+from .models.notification import Notification, NotificationType
+
 
 # Import routes
 from .routes import (
@@ -35,7 +39,10 @@ from .routes import (
     food_route,
     public_routes,
     admin_utils,
-    pdf_route
+    pdf_route,
+    notification
+
+
 )
 
 load_dotenv()
@@ -351,6 +358,7 @@ app.include_router(grooms.router)
 app.include_router(food_route.router)
 app.include_router(public_routes.router)
 app.include_router(pdf_route.router)
+app.include_router(notification.router)
 
 
 if __name__ == "__main__":
