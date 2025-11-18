@@ -319,15 +319,15 @@ async def lifespan(app: FastAPI):
         if not volume_ready and IS_PRODUCTION:
             print("⚠️ WARNING: Running in production without persistent storage!")
 
-        # Run Alembic migrations
-        print("\n🔄 Running database migrations...")
-        migration_success = run_alembic_migrations()
+        # # Run Alembic migrations
+        # print("\n🔄 Running database migrations...")
+        # migration_success = run_alembic_migrations()
 
-        if not migration_success and not IS_PRODUCTION:
-            # Fallback to create_all only in development if migrations fail
-            print("⚠️ Migrations failed, falling back to create_all...")
-            Base.metadata.create_all(bind=engine)
-            print("✅ Database tables created/verified")
+        # if not migration_success and not IS_PRODUCTION:
+        #     # Fallback to create_all only in development if migrations fail
+        #     print("⚠️ Migrations failed, falling back to create_all...")
+        #     Base.metadata.create_all(bind=engine)
+        #     print("✅ Database tables created/verified")
 
         # Always ensure super admin exists (important for Railway)
         print("\n👤 Checking super admin...")
