@@ -11,7 +11,9 @@ from server.models.hall import Hall
 from server.models.clan import Clan
 from server.models.county import County
 from server.models.user import User, UserRole
-from server.models.notification import Notification, NotificationType
+from server.models.notification import Notification
+from server.models.notification import NotificationType
+
 
 from server.db import Base
 from dotenv import load_dotenv
