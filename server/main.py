@@ -292,6 +292,61 @@ def seed_initial_data():
         db.close()
 
 
+# @asynccontextmanager
+# async def lifespan(app: FastAPI):
+#     # Startup
+#     print("=" * 60)
+#     print(f"🚀 Starting in {ENVIRONMENT} mode...")
+#     get_database_url()  # This will print the database info
+#     print("=" * 60)
+
+#     try:
+#         # Initialize volume storage first
+#         print("\n📦 Initializing storage...")
+#         volume_ready = initialize_volume_storage()
+#         if not volume_ready and IS_PRODUCTION:
+#             print("⚠️ WARNING: Running in production without persistent storage!")
+
+#         # Run Alembic migrations FIRST - before any database queries
+#         print("\n🔄 Running database migrations...")
+#         migration_success = run_alembic_migrations()
+
+#         if not migration_success:
+#             if IS_PRODUCTION:
+#                 print("❌ CRITICAL: Migrations failed in production!")
+#                 raise Exception(
+#                     "Database migration failed - cannot start application")
+#             else:
+#                 # Fallback to create_all only in development
+#                 print("⚠️ Migrations failed, falling back to create_all...")
+#                 Base.metadata.create_all(bind=engine)
+#                 print("✅ Database tables created/verified")
+
+#         # ONLY AFTER migrations are complete, check/create super admin
+#         print("\n👤 Checking super admin...")
+#         ensure_super_admin_exists()
+
+#         print("\n" + "=" * 60)
+#         print("✅ Application ready!")
+#         print(f"🌍 Environment: {ENVIRONMENT}")
+#         print(f"📍 Server: http://127.0.0.1:8000")
+#         print(f"📚 Docs: http://127.0.0.1:8000/docs" if not IS_PRODUCTION else "📚 Docs: Disabled in production")
+#         print("=" * 60)
+
+#     except Exception as e:
+#         print(f"\n❌ Startup error: {e}")
+#         import traceback
+#         traceback.print_exc()
+#         if IS_PRODUCTION:
+#             # In production, fail fast if startup fails
+#             raise
+
+#     yield
+
+#     # Shutdown
+#     print("\n👋 Shutting down...")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
@@ -307,22 +362,50 @@ async def lifespan(app: FastAPI):
         if not volume_ready and IS_PRODUCTION:
             print("⚠️ WARNING: Running in production without persistent storage!")
 
-        # Run Alembic migrations FIRST - before any database queries
-        print("\n🔄 Running database migrations...")
-        migration_success = run_alembic_migrations()
+        # Check if migrations should be skipped
+        skip_migrations = os.getenv(
+            "SKIP_MIGRATIONS", "false").lower() == "true"
 
-        if not migration_success:
-            if IS_PRODUCTION:
-                print("❌ CRITICAL: Migrations failed in production!")
-                raise Exception(
-                    "Database migration failed - cannot start application")
-            else:
-                # Fallback to create_all only in development
-                print("⚠️ Migrations failed, falling back to create_all...")
+        if skip_migrations:
+            print("\n⚠️ ⚠️ ⚠️ SKIPPING MIGRATIONS (SKIP_MIGRATIONS=true) ⚠️ ⚠️ ⚠️")
+            print("⚠️ This is a temporary bypass - ensure database schema is correct!")
+            print("⚠️ Remove SKIP_MIGRATIONS after resolving migration issues!")
+
+            # Still ensure tables exist using create_all as fallback
+            try:
+                print("🔄 Ensuring database tables exist...")
                 Base.metadata.create_all(bind=engine)
-                print("✅ Database tables created/verified")
+                print("✅ Database tables verified")
+            except Exception as e:
+                print(f"⚠️ Error creating tables: {e}")
+                if IS_PRODUCTION:
+                    print("⚠️ Continuing anyway due to SKIP_MIGRATIONS flag...")
+        else:
+            # Normal migration flow
+            print("\n🔄 Running database migrations...")
+            migration_success = run_alembic_migrations()
 
-        # ONLY AFTER migrations are complete, check/create super admin
+            if not migration_success:
+                if IS_PRODUCTION:
+                    print("❌ CRITICAL: Migrations failed in production!")
+                    print("💡 TIP: Set SKIP_MIGRATIONS=true to bypass temporarily")
+                    print("💡 Then investigate and fix the migration issue")
+                    # Don't raise - allow app to start anyway for emergency recovery
+                    print("⚠️ Attempting to continue without migrations...")
+                    try:
+                        Base.metadata.create_all(bind=engine)
+                        print("✅ Database tables created/verified as fallback")
+                    except Exception as fallback_error:
+                        print(f"❌ Fallback also failed: {fallback_error}")
+                        raise Exception(
+                            "Cannot start - both migrations and fallback failed")
+                else:
+                    # Fallback to create_all only in development
+                    print("⚠️ Migrations failed, falling back to create_all...")
+                    Base.metadata.create_all(bind=engine)
+                    print("✅ Database tables created/verified")
+
+        # ONLY AFTER migrations/schema setup is complete, check/create super admin
         print("\n👤 Checking super admin...")
         ensure_super_admin_exists()
 
@@ -330,16 +413,23 @@ async def lifespan(app: FastAPI):
         print("✅ Application ready!")
         print(f"🌍 Environment: {ENVIRONMENT}")
         print(f"📍 Server: http://127.0.0.1:8000")
-        print(f"📚 Docs: http://127.0.0.1:8000/docs" if not IS_PRODUCTION else "📚 Docs: Disabled in production")
+        if not IS_PRODUCTION:
+            print(f"📚 Docs: http://127.0.0.1:8000/docs")
+        else:
+            print("📚 Docs: Disabled in production")
+        if skip_migrations:
+            print("⚠️ WARNING: Running with SKIP_MIGRATIONS=true")
         print("=" * 60)
 
     except Exception as e:
         print(f"\n❌ Startup error: {e}")
         import traceback
         traceback.print_exc()
-        if IS_PRODUCTION:
-            # In production, fail fast if startup fails
+        if IS_PRODUCTION and not skip_migrations:
+            # In production, fail fast if startup fails (unless migrations skipped)
             raise
+        elif IS_PRODUCTION:
+            print("⚠️ Continuing despite error due to SKIP_MIGRATIONS flag...")
 
     yield
 
