@@ -51,7 +51,7 @@ class NotificationService:
             reservation_id=reservation.id,
             notification_type=NotificationType.new_reservation,
             title="حجز جديد",
-            message=f"تم إنشاء حجز جديد من قبل {groom_name} بتاريخ {reservation.date1.strftime('%Y-%m-%d')}",
+            message=f"تم إنشاء حجز جديد من قبل {groom_name} بتاريخ {reservation.date1.strftime('%Y-%m-%d')} \n {reservation.phone_number} رقم الهاتف: ",
             is_read=False,
             is_groom=False,
             created_at=datetime.utcnow()
