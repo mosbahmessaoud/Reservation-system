@@ -523,6 +523,14 @@ def cancel_my_reservation(groom_id: int, db: Session = Depends(get_db), current:
     resv.status = ReservationStatus.cancelled
     db.commit()
     db.refresh(resv)
+    NotificationService.create_general_notification(
+        db=db,
+        clan_id=current.clan_id,
+        county_id=current.county_id,
+        title="إلغاء حجز",
+        message=f"قام العريس {current.first_name} {current.last_name} بإلغاء حجزه.\n رقم الهاتف: {current.phone_number}",
+        is_groom=False
+    )
     return resv
 
 
@@ -553,6 +561,11 @@ def validate_reservation(groom_id: int, db: Session = Depends(get_db), current: 
     resv.status = ReservationStatus.validated
     db.commit()
     db.refresh(resv)
+    NotificationService.notify_reservation_validation(
+        db=db,
+        reservation=resv,
+        validated=True
+    )
     return resv
 
 
