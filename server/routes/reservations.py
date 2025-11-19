@@ -28,7 +28,7 @@ from ..models.user import User, UserRole
 from ..models.reservation import Reservation, ReservationStatus
 from ..models.clan_settings import ClanSettings
 from ..schemas.reservation import ReservationCreate, ReservationCreateResponse, ReservationOut
-
+from ..utils.notification_service import NotificationService
 from datetime import datetime, date
 from sqlalchemy import extract, func
 
@@ -427,6 +427,10 @@ def create_reservation(resv_in: ReservationCreate, db: Session = Depends(get_db)
         db.add(resv)
         db.commit()
         db.refresh(resv)
+        NotificationService.create_new_reservation_notification(
+            db=db,
+            reservation=resv
+        )
 
         logger.info(
             f"Successfully created reservation {resv.id} for groom {current.id}")
