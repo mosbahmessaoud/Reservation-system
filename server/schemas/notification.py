@@ -113,3 +113,9 @@ class NotificationListResponse(BaseModel):
     page: int
     page_size: int
     has_more: bool
+
+
+class NotifDataCreat(BaseModel):  # Inherit from BaseModel for Pydantic validation
+    title: str
+    message: str
+    is_groom: bool

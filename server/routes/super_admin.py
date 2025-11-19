@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm import joinedload
 
 from server.models.food import FoodMenu
+from server.schemas.notification import NotifDataCreat
+from server.utils.notification_service import NotificationService
 from server.utils.otp_utils import generate_otp_code
 from server.utils.phone_utils import validate_number_phone, validate_number_phone_of_guardian
 
@@ -639,3 +641,26 @@ def list_of_all_madaih_committe(county__id: int, db: Session = Depends(get_db)):
 
 
 # --------------------------------------------------------
+
+# create general notification
+@router.post("/create_notification", dependencies=[Depends(super_admin_required)])
+def create_notification(notif_data: NotifDataCreat, db: Session = Depends(get_db)):
+    # Get all users from the database
+    users = db.query(User).filter(
+        User.role == (UserRole.groom if notif_data.is_groom else UserRole.clan_admin)
+    ).all()  # Replace 'User' with your actual user model
+    
+    # Create notification for each user
+    for user in users:
+        NotificationService.create_general_notification(
+            db=db,
+            user_id=user.id,
+            title=notif_data.title,
+            message=notif_data.message,
+            is_groom=notif_data.is_groom
+        )
+    
+    return {"message": f"Notification sent to {len(users)} users successfully"}
+
+
+
