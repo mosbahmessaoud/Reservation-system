@@ -323,8 +323,8 @@ async def lifespan(app: FastAPI):
                 print("✅ Database tables created/verified")
 
         # ONLY AFTER migrations are complete, check/create super admin
-        # print("\n👤 Checking super admin...")
-        # ensure_super_admin_exists()
+        print("\n👤 Checking super admin...")
+        ensure_super_admin_exists()
 
         print("\n" + "=" * 60)
         print("✅ Application ready!")

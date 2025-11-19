@@ -31,7 +31,7 @@ class NotificationResponse(NotificationBase):
     read_at: Optional[datetime] = None
 
     class Config:
-        from_attributes = True  # For Pydantic v2 (orm_mode in v1)
+        from_attributes = True 
 
 
 class NotificationWithReservation(NotificationResponse):
