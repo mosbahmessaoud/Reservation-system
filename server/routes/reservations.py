@@ -3,6 +3,7 @@
 Reservation routes for grooms and clan admins.
 """
 import logging
+import server.utils.notification_service
 import subprocess
 from typing import Dict, List, Optional
 from sqlalchemy import text
@@ -503,6 +504,10 @@ def download_pdf(reservation_id: int):
 # a groom cancel his reservation if is on status of pending validation
 @router.post("/{groom_id}/cancel", response_model=ReservationOut, dependencies=[Depends(groom_required)])
 def cancel_my_reservation(groom_id: int, db: Session = Depends(get_db), current: User = Depends(groom_required)):
+    clan_admin = db.query(User).filter(
+        User.clan_id == current.clan_id,
+        User.role == UserRole.clan_admin
+    ).first()
     resv = db.query(Reservation).filter(
         Reservation.county_id == current.county_id,
         Reservation.groom_id == groom_id,
@@ -525,7 +530,7 @@ def cancel_my_reservation(groom_id: int, db: Session = Depends(get_db), current:
     db.refresh(resv)
     NotificationService.create_general_notification(
         db=db,
-        clan_id=current.clan_id,
+        user_id=clan_admin.id,
         county_id=current.county_id,
         title="إلغاء حجز",
         message=f"قام العريس {current.first_name} {current.last_name} بإلغاء حجزه.\n رقم الهاتف: {current.phone_number}",
@@ -591,6 +596,14 @@ def cancel_a_groom_reservation(groom_id: int, db: Session = Depends(get_db), cur
     resv.status = ReservationStatus.cancelled
     db.commit()
     db.refresh(resv)
+    NotificationService.create_general_notification(
+        db=db,
+        user_id=resv.groom_id,
+        reservation_id=resv.id,
+        title="إلغاء حجز",
+        message=f"قام مدير العشيرة {current.first_name} {current.last_name} بإلغاء حجز العريس {resv.first_name} {resv.last_name}.\n رقم الهاتف: {resv.phone_number}",
+        is_groom=False
+    )
 
     # return resv
     return {
