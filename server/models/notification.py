@@ -2,7 +2,7 @@
 Notification model: Stores notifications for clan admins about new reservations.
 Path: server/models/notification.py
 """
-from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, DateTime, Enum, Text
+from sqlalchemy import Column, Integer, Nullable, String, ForeignKey, Boolean, DateTime, Enum, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
@@ -28,7 +28,7 @@ class Notification(Base):
 
     # The reservation that triggered this notification
     reservation_id = Column(Integer, ForeignKey(
-        "reservations.id", ondelete="CASCADE"), nullable=False)
+        "reservations.id", ondelete="CASCADE"), nullable=True)
 
     # Notification details
     notification_type = Column(Enum(NotificationType), nullable=False)

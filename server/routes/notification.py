@@ -14,12 +14,14 @@ from server.models.notification import Notification, NotificationType
 from server.models.reservation import Reservation
 from server.utils.notification_service import NotificationService
 from server.schemas.notification import (
+    NotifDataCreat,
     NotificationOut,
     NotificationCreate,
     NotificationMarkRead,
     NotificationStats,
     BulkNotificationResponse
 )
+from server.routes.auth import super_admin_required
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -314,62 +316,62 @@ def bulk_delete_notifications(
         raise HTTPException(500, f"خطأ في حذف الإشعارات: {str(e)}")
 
 
-# Admin-only routes
-@router.post("/create-general", response_model=NotificationOut, dependencies=[Depends(clan_admin_required)])
-def create_general_notification(
-    notification_data: NotificationCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(clan_admin_required)
-):
-    """
-    Create a general notification (Clan Admin only).
+# # Admin-only routes
+# @router.post("/create-general", response_model=NotificationOut, dependencies=[Depends(clan_admin_required)])
+# def create_general_notification(
+#     notification_data: NotificationCreate,
+#     db: Session = Depends(get_db),
+#     current_user: User = Depends(clan_admin_required)
+# ):
+#     """
+#     Create a general notification (Clan Admin only).
 
-    Allows clan admins to send custom notifications to users.
-    """
-    try:
-        # Verify the reservation belongs to the admin's clan
-        reservation = db.query(Reservation).filter(
-            Reservation.id == notification_data.reservation_id
-        ).first()
+#     Allows clan admins to send custom notifications to users.
+#     """
+#     try:
+#         # Verify the reservation belongs to the admin's clan
+#         reservation = db.query(Reservation).filter(
+#             Reservation.id == notification_data.reservation_id
+#         ).first()
 
-        if not reservation:
-            raise HTTPException(404, "الحجز غير موجود")
+#         if not reservation:
+#             raise HTTPException(404, "الحجز غير موجود")
 
-        if reservation.clan_id != current_user.clan_id:
-            raise HTTPException(403, "غير مصرح لك بإرسال إشعارات لهذا الحجز")
+#         if reservation.clan_id != current_user.clan_id:
+#             raise HTTPException(403, "غير مصرح لك بإرسال إشعارات لهذا الحجز")
 
-        # Verify the target user
-        target_user = db.query(User).filter(
-            User.id == notification_data.user_id
-        ).first()
+#         # Verify the target user
+#         target_user = db.query(User).filter(
+#             User.id == notification_data.user_id
+#         ).first()
 
-        if not target_user:
-            raise HTTPException(404, "المستخدم المستهدف غير موجود")
+#         if not target_user:
+#             raise HTTPException(404, "المستخدم المستهدف غير موجود")
 
-        # Create the notification
-        notification = NotificationService.create_general_notification(
-            db=db,
-            user_id=notification_data.user_id,
-            reservation_id=notification_data.reservation_id,
-            title=notification_data.title,
-            message=notification_data.message,
-            is_groom=(target_user.role == UserRole.groom)
-        )
+#         # Create the notification
+#         notification = NotificationService.create_general_notification(
+#             db=db,
+#             user_id=notification_data.user_id,
+#             reservation_id=notification_data.reservation_id,
+#             title=notification_data.title,
+#             message=notification_data.message,
+#             is_groom=(target_user.role == UserRole.groom)
+#         )
 
-        if not notification:
-            raise HTTPException(500, "فشل إنشاء الإشعار")
+#         if not notification:
+#             raise HTTPException(500, "فشل إنشاء الإشعار")
 
-        logger.info(
-            f"General notification created by admin {current_user.id} for user {notification_data.user_id}")
+#         logger.info(
+#             f"General notification created by admin {current_user.id} for user {notification_data.user_id}")
 
-        return notification
+#         return notification
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error creating general notification: {e}")
-        db.rollback()
-        raise HTTPException(500, f"خطأ في إنشاء الإشعار: {str(e)}")
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         logger.error(f"Error creating general notification: {e}")
+#         db.rollback()
+#         raise HTTPException(500, f"خطأ في إنشاء الإشعار: {str(e)}")
 
 
 @router.post("/notify-validation/{reservation_id}", response_model=NotificationOut, dependencies=[Depends(clan_admin_required)])
@@ -574,3 +576,45 @@ def get_latest_notification_for_reservation(
             500,
             f"خطأ في جلب الإشعار: {str(e)}"
         )
+
+
+# create general notification
+@router.post("/create_notification", dependencies=[Depends(super_admin_required)])
+def create_notification(notif_data: NotifDataCreat, db: Session = Depends(get_db)):
+    # Get all users from the database
+    users = db.query(User).filter(
+        User.role == (
+            UserRole.groom if notif_data.is_groom else UserRole.clan_admin)
+    ).all()  # Replace 'User' with your actual user model
+
+    # Create notification for each user
+    for user in users:
+        NotificationService.create_general_notification(
+            db=db,
+            user_id=user.id,
+            title=notif_data.title,
+            message=notif_data.message,
+            is_groom=notif_data.is_groom
+        )
+
+    return {"message": f"Notification sent to {len(users)} users successfully"}
+
+# # create general notification
+# @router.post("/create_notification_grooms_reserved", dependencies=[Depends(super_admin_required)])
+# def create_notification(notif_data: NotifDataCreat, db: Session = Depends(get_db)):
+#     # Get all users from the database
+#     users = db.query(User).filter(
+#         User.role == UserRole.groom
+#     ).all()  # Replace 'User' with your actual user model
+
+#     # Create notification for each user
+#     for user in users:
+#         NotificationService.create_general_notification(
+#             db=db,
+#             user_id=user.id,
+#             title=notif_data.title,
+#             message=notif_data.message,
+#             is_groom=True
+#         )
+
+#     return {"message": f"Notification sent to {len(users)} users successfully"}
