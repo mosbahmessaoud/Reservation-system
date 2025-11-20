@@ -39,6 +39,40 @@ authenticated = require_role(
     [UserRole.groom, UserRole.clan_admin, UserRole.super_admin])
 
 
+# @router.get("", response_model=List[NotificationOut])
+# def get_notifications(
+#     unread_only: bool = Query(
+#         False, description="Get only unread notifications"),
+#     limit: int = Query(
+#         50, ge=1, le=100, description="Maximum number of notifications to return"),
+#     db: Session = Depends(get_db),
+#     current_user: User = Depends(authenticated)
+# ):
+#     """
+#     Get all notifications for the current user.
+
+#     - **unread_only**: Filter to show only unread notifications
+#     - **limit**: Maximum number of notifications to return (1-100)
+#     """
+#     try:
+#         notifications = NotificationService.get_user_notifications(
+#             db=db,
+#             user_id=current_user.id,
+#             unread_only=unread_only,
+#             limit=limit
+#         )
+
+#         logger.info(
+#             f"Retrieved {len(notifications)} notifications for user {current_user.id}")
+#         return notifications
+
+#     except Exception as e:
+#         logger.error(
+#             f"Error retrieving notifications for user {current_user.id}: {e}")
+#         raise HTTPException(500, f"خطأ في جلب الإشعارات: {str(e)}")
+
+# In server/routes/notifications.py, modify the get_notifications function:
+
 @router.get("", response_model=List[NotificationOut])
 def get_notifications(
     unread_only: bool = Query(
@@ -46,21 +80,33 @@ def get_notifications(
     limit: int = Query(
         50, ge=1, le=100, description="Maximum number of notifications to return"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(authenticated)
 ):
     """
     Get all notifications for the current user.
-
-    - **unread_only**: Filter to show only unread notifications
-    - **limit**: Maximum number of notifications to return (1-100)
     """
     try:
-        notifications = NotificationService.get_user_notifications(
-            db=db,
-            user_id=current_user.id,
-            unread_only=unread_only,
-            limit=limit
+        from sqlalchemy import or_
+
+        # Build query with safer join
+        query = db.query(Notification).filter(
+            Notification.user_id == current_user.id
         )
+
+        # Filter for valid reservations only
+        query = query.outerjoin(Reservation).filter(
+            or_(
+                Notification.reservation_id == None,
+                Reservation.id != None
+            )
+        )
+
+        if unread_only:
+            query = query.filter(Notification.is_read == False)
+
+        notifications = query.order_by(
+            Notification.created_at.desc()
+        ).limit(limit).all()
 
         logger.info(
             f"Retrieved {len(notifications)} notifications for user {current_user.id}")
