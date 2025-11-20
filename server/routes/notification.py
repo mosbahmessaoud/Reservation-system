@@ -31,9 +31,10 @@ router = APIRouter(
 )
 
 # Role-based dependencies
-groom_required = require_role([UserRole.groom])
-clan_admin_required = require_role([UserRole.clan_admin])
-authenticated = require_role([UserRole.groom, UserRole.clan_admin])
+groom_required = require_role([UserRole.groom,  UserRole.super_admin])
+clan_admin_required = require_role([UserRole.clan_admin, UserRole.super_admin])
+authenticated = require_role(
+    [UserRole.groom, UserRole.clan_admin, UserRole.super_admin])
 
 
 @router.get("", response_model=List[NotificationOut])
