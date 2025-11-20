@@ -531,9 +531,9 @@ def cancel_my_reservation(groom_id: int, db: Session = Depends(get_db), current:
     NotificationService.create_general_notification(
         db=db,
         user_id=clan_admin.id,
-        county_id=current.county_id,
+        reservation_id=resv.id,
         title="إلغاء حجز",
-        message=f"قام العريس {current.first_name} {current.last_name} بإلغاء حجزه.\n رقم الهاتف: {current.phone_number}",
+        message=f"قام العريس {current.first_name} {current.last_name} بإلغاء حجزه.\n   {current.phone_number} رقم الهاتف:",
         is_groom=False
     )
     return resv
@@ -569,7 +569,7 @@ def validate_reservation(groom_id: int, db: Session = Depends(get_db), current: 
     NotificationService.notify_reservation_validation(
         db=db,
         reservation=resv,
-        validated=True
+        is_approved=True
     )
     return resv
 
@@ -578,6 +578,9 @@ def validate_reservation(groom_id: int, db: Session = Depends(get_db), current: 
 @router.post("/{groom_id}/cancel_by_clan_admin", response_model=dict, dependencies=[Depends(clan_admin_required)])
 def cancel_a_groom_reservation(groom_id: int, db: Session = Depends(get_db), current: User = Depends(clan_admin_required)):
 
+    clan_name = db.query(Clan).filter(
+        Clan.id == current.clan_id
+    ).first().name
     resv = db.query(Reservation).filter(
         Reservation.county_id == current.county_id,
         Reservation.groom_id == groom_id,
@@ -601,8 +604,8 @@ def cancel_a_groom_reservation(groom_id: int, db: Session = Depends(get_db), cur
         user_id=resv.groom_id,
         reservation_id=resv.id,
         title="إلغاء حجز",
-        message=f"قام مدير العشيرة {current.first_name} {current.last_name} بإلغاء حجز العريس {resv.first_name} {resv.last_name}.\n رقم الهاتف: {resv.phone_number}",
-        is_groom=False
+        message=f"قام مدير العشيرة بإلغاء حجزك .   \n {clan_name}  \n  {resv.phone_number}رقم الهاتف:",
+        is_groom=True
     )
 
     # return resv
