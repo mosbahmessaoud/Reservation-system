@@ -185,7 +185,7 @@ class NotificationService:
         user_id: int,
         title: str,
         message: str,
-        reservation_id: Optional[int] = None,
+        reservation_id: Optional[int] = None,  # now optional
         is_groom: bool = False
     ) -> Optional[Notification]:
         """
@@ -194,9 +194,9 @@ class NotificationService:
         Args:
             db: Database session
             user_id: ID of the user to notify
+            reservation_id: Related reservation ID
             title: Notification title
             message: Notification message
-            reservation_id: Related reservation ID (optional)
             is_groom: Whether the notification is for a groom
         """
         notification = Notification(

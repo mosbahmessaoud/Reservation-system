@@ -531,9 +531,9 @@ def cancel_my_reservation(groom_id: int, db: Session = Depends(get_db), current:
     NotificationService.create_general_notification(
         db=db,
         user_id=clan_admin.id,
-        reservation_id=resv.id,
         title="إلغاء حجز",
         message=f"قام العريس {current.first_name} {current.last_name} بإلغاء حجزه.\n   {current.phone_number} رقم الهاتف:",
+        reservation_id=resv.id,
         is_groom=False
     )
     return resv
@@ -602,9 +602,9 @@ def cancel_a_groom_reservation(groom_id: int, db: Session = Depends(get_db), cur
     NotificationService.create_general_notification(
         db=db,
         user_id=resv.groom_id,
-        reservation_id=resv.id,
         title="إلغاء حجز",
         message=f"قام مدير العشيرة بإلغاء حجزك .   \n {clan_name}  \n  {resv.phone_number}رقم الهاتف:",
+        reservation_id=resv.id,
         is_groom=True
     )
 
