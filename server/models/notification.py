@@ -2,7 +2,7 @@
 Notification model: Stores notifications for clan admins about new reservations.
 Path: server/models/notification.py
 """
-from sqlalchemy import Column, Integer, Nullable, String, ForeignKey, Boolean, DateTime, Enum, Text
+from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, DateTime, Enum, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum

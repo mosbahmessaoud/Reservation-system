@@ -39,40 +39,6 @@ authenticated = require_role(
     [UserRole.groom, UserRole.clan_admin, UserRole.super_admin])
 
 
-@router.get("", response_model=List[NotificationOut])
-def get_notifications(
-    unread_only: bool = Query(
-        False, description="Get only unread notifications"),
-    limit: int = Query(
-        50, ge=1, le=100, description="Maximum number of notifications to return"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(authenticated)
-):
-    """
-    Get all notifications for the current user.
-
-    - **unread_only**: Filter to show only unread notifications
-    - **limit**: Maximum number of notifications to return (1-100)
-    """
-    try:
-        notifications = NotificationService.get_user_notifications(
-            db=db,
-            user_id=current_user.id,
-            unread_only=unread_only,
-            limit=limit
-        )
-
-        logger.info(
-            f"Retrieved {len(notifications)} notifications for user {current_user.id}")
-        return notifications
-
-    except Exception as e:
-        logger.error(
-            f"Error retrieving notifications for user {current_user.id}: {e}")
-        raise HTTPException(500, f"خطأ في جلب الإشعارات: {str(e)}")
-
-# In server/routes/notifications.py, modify the get_notifications function:
-
 # @router.get("", response_model=List[NotificationOut])
 # def get_notifications(
 #     unread_only: bool = Query(
@@ -84,29 +50,17 @@ def get_notifications(
 # ):
 #     """
 #     Get all notifications for the current user.
+
+#     - **unread_only**: Filter to show only unread notifications
+#     - **limit**: Maximum number of notifications to return (1-100)
 #     """
 #     try:
-#         from sqlalchemy import or_
-
-#         # Build query with safer join
-#         query = db.query(Notification).filter(
-#             Notification.user_id == current_user.id
+#         notifications = NotificationService.get_user_notifications(
+#             db=db,
+#             user_id=current_user.id,
+#             unread_only=unread_only,
+#             limit=limit
 #         )
-
-#         # Filter for valid reservations only
-#         query = query.outerjoin(Reservation).filter(
-#             or_(
-#                 Notification.reservation_id == None,
-#                 Reservation.id != None
-#             )
-#         )
-
-#         if unread_only:
-#             query = query.filter(Notification.is_read == False)
-
-#         notifications = query.order_by(
-#             Notification.created_at.desc()
-#         ).limit(limit).all()
 
 #         logger.info(
 #             f"Retrieved {len(notifications)} notifications for user {current_user.id}")
@@ -116,6 +70,74 @@ def get_notifications(
 #         logger.error(
 #             f"Error retrieving notifications for user {current_user.id}: {e}")
 #         raise HTTPException(500, f"خطأ في جلب الإشعارات: {str(e)}")
+"""
+Fixed notification routes - NO MODEL CHANGES NEEDED
+Replace the get_notifications endpoint in server/routes/notifications.py
+"""
+
+
+@router.get("", response_model=List[NotificationOut])
+def get_notifications(
+    unread_only: bool = Query(
+        False, description="Get only unread notifications"),
+    limit: int = Query(
+        50, ge=1, le=100, description="Maximum number of notifications to return"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(authenticated)
+):
+    """Get all notifications for the current user."""
+    try:
+        query = db.query(Notification).filter(
+            Notification.user_id == current_user.id
+        )
+
+        if unread_only:
+            query = query.filter(Notification.is_read == False)
+
+        notifications = query.order_by(
+            Notification.created_at.desc()
+        ).limit(limit).all()
+
+        logger.info(
+            f"Retrieved {len(notifications)} notifications for user {current_user.id}")
+
+        # Manually serialize each notification
+        result = []
+        for notif in notifications:
+            try:
+                notification_dict = {
+                    "id": notif.id,
+                    "user_id": notif.user_id,
+                    "reservation_id": notif.reservation_id,  # Can be None now
+                    "notification_type": notif.notification_type,
+                    "title": notif.title,
+                    "message": notif.message,
+                    "is_read": notif.is_read,
+                    "is_groom": notif.is_groom,
+                    "created_at": notif.created_at,
+                    "read_at": notif.read_at
+                }
+                result.append(NotificationOut(**notification_dict))
+            except Exception as serialize_error:
+                logger.error(
+                    f"Error serializing notification {notif.id}: {serialize_error}")
+                continue
+
+        return result
+
+    except Exception as e:
+        logger.error(
+            f"Error retrieving notifications for user {current_user.id}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "خطأ في جلب الإشعارات",
+                "message": str(e),
+                "type": "database_error"
+            }
+        )
+
+# Also update the get_notification_stats endpoint
 
 
 @router.get("/stats", response_model=NotificationStats)
@@ -131,35 +153,120 @@ def get_notification_stats(
     - Breakdown by notification type
     """
     try:
-        unread_count = NotificationService.get_unread_count(
-            db=db,
-            user_id=current_user.id
-        )
+        # Count unread notifications
+        unread_count = db.query(Notification).filter(
+            Notification.user_id == current_user.id,
+            Notification.is_read == False
+        ).count()
 
-        # Get breakdown by type
-        notifications = db.query(Notification).filter(
+        # Get breakdown by type - avoid loading relationships
+        notifications = db.query(
+            Notification.notification_type
+        ).filter(
             Notification.user_id == current_user.id,
             Notification.is_read == False
         ).all()
 
         type_breakdown = {}
-        for notif in notifications:
-            notif_type = notif.notification_type.value
-            type_breakdown[notif_type] = type_breakdown.get(notif_type, 0) + 1
+        for (notif_type,) in notifications:
+            type_value = notif_type.value if hasattr(
+                notif_type, 'value') else str(notif_type)
+            type_breakdown[type_value] = type_breakdown.get(type_value, 0) + 1
 
         logger.info(
             f"Stats retrieved for user {current_user.id}: {unread_count} unread")
 
-        return {
-            "unread_count": unread_count,
-            "total_count": len(notifications),
-            "by_type": type_breakdown
-        }
+        return NotificationStats(
+            unread_count=unread_count,
+            total_count=len(notifications),
+            by_type=type_breakdown
+        )
 
     except Exception as e:
         logger.error(
-            f"Error getting notification stats for user {current_user.id}: {e}")
-        raise HTTPException(500, f"خطأ في جلب إحصائيات الإشعارات: {str(e)}")
+            f"Error getting notification stats for user {current_user.id}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "خطأ في جلب إحصائيات الإشعارات",
+                "message": str(e)
+            }
+        )
+
+
+# Fix the get_notifications_by_reservation endpoint
+@router.get("/by-reservation/{reservation_id}", response_model=List[NotificationOut])
+def get_notifications_by_reservation(
+    reservation_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(authenticated)
+):
+    """
+    Get all notifications for a specific reservation.
+    """
+    try:
+        # Get notifications without loading relationships
+        notifications = db.query(Notification).filter(
+            Notification.reservation_id == reservation_id
+        ).order_by(
+            Notification.created_at.desc()
+        ).all()
+
+        # Filter based on user permissions
+        allowed_notifications = []
+
+        for notif in notifications:
+            # If it's the user's own notification
+            if notif.user_id == current_user.id:
+                allowed_notifications.append(notif)
+            # If user is clan admin, check reservation clan
+            elif current_user.role == UserRole.clan_admin:
+                # Query reservation separately to avoid relationship issues
+                reservation = db.query(Reservation).filter(
+                    Reservation.id == reservation_id
+                ).first()
+                if reservation and reservation.clan_id == current_user.clan_id:
+                    allowed_notifications.append(notif)
+
+        # Manually serialize
+        result = []
+        for notif in allowed_notifications:
+            try:
+                result.append(NotificationOut(
+                    id=notif.id,
+                    user_id=notif.user_id,
+                    reservation_id=notif.reservation_id,
+                    notification_type=notif.notification_type,
+                    title=notif.title,
+                    message=notif.message,
+                    is_read=notif.is_read,
+                    is_groom=notif.is_groom,
+                    created_at=notif.created_at,
+                    read_at=notif.read_at
+                ))
+            except Exception as serialize_error:
+                logger.error(
+                    f"Error serializing notification {notif.id}: {serialize_error}")
+                continue
+
+        logger.info(
+            f"Retrieved {len(result)} notifications for "
+            f"reservation {reservation_id}, user {current_user.id}"
+        )
+
+        return result
+
+    except Exception as e:
+        logger.error(
+            f"Error retrieving notifications for reservation {reservation_id}: {e}"
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "خطأ في جلب الإشعارات",
+                "message": str(e)
+            }
+        )
 
 
 @router.get("/unread-count", response_model=dict)
@@ -501,60 +608,6 @@ def get_notifications_by_type(
         raise HTTPException(500, f"خطأ في جلب الإشعارات: {str(e)}")
 
     # Add this route to your notifications.py file in the FastAPI backend
-
-
-@router.get("/by-reservation/{reservation_id}", response_model=List[NotificationOut])
-def get_notifications_by_reservation(
-    reservation_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(authenticated)
-):
-    """
-    Get all notifications for a specific reservation.
-
-    This is used to fetch auto-generated notifications after reservation creation.
-
-    - **reservation_id**: The ID of the reservation
-    """
-    try:
-        # Get all notifications for this reservation, ordered by most recent first
-        notifications = db.query(Notification).filter(
-            Notification.reservation_id == reservation_id
-        ).order_by(
-            Notification.created_at.desc()
-        ).all()
-
-        # Security check: User can only see their own notifications
-        # OR clan admin can see notifications for reservations in their clan
-        allowed_notifications = []
-
-        for notification in notifications:
-            # If it's the user's own notification
-            if notification.user_id == current_user.id:
-                allowed_notifications.append(notification)
-            # If user is clan admin and notification is for their clan's reservation
-            elif current_user.role == UserRole.clan_admin:
-                reservation = db.query(Reservation).filter(
-                    Reservation.id == reservation_id
-                ).first()
-                if reservation and reservation.clan_id == current_user.clan_id:
-                    allowed_notifications.append(notification)
-
-        logger.info(
-            f"Retrieved {len(allowed_notifications)} notifications for "
-            f"reservation {reservation_id}, user {current_user.id}"
-        )
-
-        return allowed_notifications
-
-    except Exception as e:
-        logger.error(
-            f"Error retrieving notifications for reservation {reservation_id}: {e}"
-        )
-        raise HTTPException(
-            500,
-            f"خطأ في جلب الإشعارات: {str(e)}"
-        )
 
 
 # Alternative: Simpler version if you want to allow any authenticated user

@@ -31,7 +31,7 @@ class NotificationResponse(NotificationBase):
     read_at: Optional[datetime] = None
 
     class Config:
-        from_attributes = True 
+        from_attributes = True
 
 
 class NotificationWithReservation(NotificationResponse):
@@ -68,7 +68,7 @@ class NotificationOut(NotificationBase):
     """Schema for notification output"""
     id: int
     user_id: int
-    reservation_id: int
+    reservation_id: Optional[int] = None  # ← Make it optional
     notification_type: NotificationType
     is_read: bool
     is_groom: bool

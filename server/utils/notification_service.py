@@ -250,27 +250,6 @@ class NotificationService:
         db.commit()
         return count
 
-    # @staticmethod
-    # def get_user_notifications(
-    #     db: Session,
-    #     user_id: int,
-    #     unread_only: bool = False,
-    #     limit: int = 50
-    # ):
-    #     """Get notifications for a user"""
-    #     query = db.query(Notification).filter(
-    #         Notification.user_id == user_id
-    #     )
-
-    #     if unread_only:
-    #         query = query.filter(Notification.is_read == False)
-
-    #     return query.order_by(
-    #         Notification.created_at.desc()
-    #     ).limit(limit).all()
-
-    # In server/utils/notification_service.py
-
     @staticmethod
     def get_user_notifications(
         db: Session,
@@ -279,21 +258,8 @@ class NotificationService:
         limit: int = 50
     ):
         """Get notifications for a user"""
-        from sqlalchemy import or_
-        from server.models.reservation import Reservation
-
         query = db.query(Notification).filter(
             Notification.user_id == user_id
-        )
-
-        # Only include notifications where:
-        # 1. reservation_id is NULL, OR
-        # 2. reservation_id exists in reservations table
-        query = query.outerjoin(Reservation).filter(
-            or_(
-                Notification.reservation_id == None,
-                Reservation.id != None
-            )
         )
 
         if unread_only:
