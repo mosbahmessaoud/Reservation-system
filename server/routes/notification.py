@@ -46,7 +46,7 @@ def get_notifications(
     limit: int = Query(
         50, ge=1, le=100, description="Maximum number of notifications to return"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(authenticated)
+    current_user: User = Depends(get_current_user)
 ):
     """
     Get all notifications for the current user.
