@@ -89,8 +89,8 @@ class NotificationService:
                 user_id=target_user.id,
                 reservation_id=reservation.id,
                 notification_type=NotificationType.reservation_updated,
-                title="تحديث حجز - Reservation Updated",
-                message=f"تم تحديث حجزك رقم {reservation.id}. {update_details}",
+                title="تحديث حجز ",
+                message=f" تحديث حجزك تم  . {update_details}",
                 is_read=False,
                 is_groom=True,
                 created_at=datetime.utcnow()
@@ -109,8 +109,8 @@ class NotificationService:
                 user_id=clan_admin.id,
                 reservation_id=reservation.id,
                 notification_type=NotificationType.reservation_updated,
-                title="تحديث حجز - Reservation Updated",
-                message=f"تم تحديث الحجز رقم {reservation.id}. {update_details}",
+                title="تحديث حجز ",
+                message=f" تحديث الحجز تم . {update_details}",
                 is_read=False,
                 is_groom=False,
                 created_at=datetime.utcnow()
@@ -146,8 +146,8 @@ class NotificationService:
                 user_id=target_user.id,
                 reservation_id=reservation.id,
                 notification_type=NotificationType.reservation_cancelled,
-                title="إلغاء حجز - Reservation Cancelled",
-                message=f"تم إلغاء حجزك رقم {reservation.id}",
+                title="إلغاء حجز ",
+                message=f" إلغاء حجزك تم  ",
                 is_read=False,
                 is_groom=True,
                 created_at=datetime.utcnow()
@@ -166,8 +166,8 @@ class NotificationService:
                 user_id=clan_admin.id,
                 reservation_id=reservation.id,
                 notification_type=NotificationType.reservation_cancelled,
-                title="إلغاء حجز - Reservation Cancelled",
-                message=f"تم إلغاء الحجز رقم {reservation.id}",
+                title="إلغاء حجز ",
+                message=f" إلغاء الحجز تم ",
                 is_read=False,
                 is_groom=False,
                 created_at=datetime.utcnow()
@@ -295,11 +295,11 @@ class NotificationService:
             return None
 
         if is_approved:
-            title = "تم تأكيد الحجز - Reservation Approved"
-            message = f"تم تأكيد حجزك رقم {reservation.id} بنجاح"
+            title = " تأكيد الحجز تم  "
+            message = f" تأكيد حجزك بنجاح  تم "
         else:
-            title = "تم رفض الحجز - Reservation Rejected"
-            message = f"تم رفض حجزك رقم {reservation.id}"
+            title = " رفض الحجز تم "
+            message = f" رفض حجزك تم  "
 
         notification = Notification(
             user_id=reservation.groom_id,

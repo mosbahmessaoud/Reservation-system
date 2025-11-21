@@ -678,7 +678,7 @@ def get_latest_notification_for_reservation(
 
 
 # create general notification
-@router.post("/create_notification", dependencies=[Depends(super_admin_required)])
+@router.post("/create_notification", dependencies=[Depends(clan_admin_required)])
 def create_notification(notif_data: NotifDataCreat, db: Session = Depends(get_db)):
     # Get all users from the database
     users = db.query(User).filter(
