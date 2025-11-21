@@ -724,18 +724,17 @@ def create_notification(notif_data: NotifDataCreat, db: Session = Depends(get_db
 
 @router.post("/create_notification_grooms_reserved", dependencies=[Depends(clan_admin_required)])
 def create_notification(notif_data: NotifDataCreat, db: Session = Depends(get_db), current: User = Depends(get_current_user)):
-    # Get all users from the database
 
     if current.role == UserRole.super_admin:
         users_reserved = db.query(Reservation).filter(
             Reservation.status != ReservationStatus.cancelled
         ).all()
 
-        # Create notification for each user
-        for user in users_reserved:
+        # Create notification for each reservation's user
+        for reservation in users_reserved:
             NotificationService.create_general_notification(
                 db=db,
-                user_id=user.id,
+                user_id=reservation.groom_id,  # Changed from reservation.id
                 title=notif_data.title,
                 message=notif_data.message,
                 is_groom=notif_data.is_groom
@@ -747,11 +746,11 @@ def create_notification(notif_data: NotifDataCreat, db: Session = Depends(get_db
             Reservation.status != ReservationStatus.cancelled
         ).all()
 
-        # Create notification for each user
-        for user in users_reserved:
+        # Create notification for each reservation's user
+        for reservation in users_reserved:
             NotificationService.create_general_notification(
                 db=db,
-                user_id=user.id,
+                user_id=reservation.groom_id,  # Changed from reservation.id
                 title=notif_data.title,
                 message=notif_data.message,
                 is_groom=notif_data.is_groom
@@ -760,8 +759,8 @@ def create_notification(notif_data: NotifDataCreat, db: Session = Depends(get_db
         raise HTTPException(
             status_code=403, detail="غير مصرح لك بإرسال إشعارات عامة")
 
-    return {"message": f"Notification sent to {len(users)} users successfully"}
-
+    # Changed from {len(users)}
+    return {"message": f"Notification sent to {len(users_reserved)} users successfully"}
 # # create general notification
 # @router.post("/create_notification_grooms_reserved", dependencies=[Depends(super_admin_required)])
 # def create_notification(notif_data: NotifDataCreat, db: Session = Depends(get_db)):
