@@ -295,11 +295,11 @@ class NotificationService:
             return None
 
         if is_approved:
-            title = " تأكيد الحجز تم  "
-            message = f" تأكيد حجزك بنجاح  تم "
+            title = "   تم تأكيد الحجز "
+            message = f"   تم تأكيد حجزك بنجاح ✅ "
         else:
-            title = " رفض الحجز تم "
-            message = f" رفض حجزك تم  "
+            title = "  تم رفض الحجز "
+            message = f"  تم رفض حجزك ❌ "
 
         notification = Notification(
             user_id=reservation.groom_id,
