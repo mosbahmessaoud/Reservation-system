@@ -138,6 +138,59 @@ def get_notifications(
             }
         )
 
+
+@router.get("/sent", response_model=List[NotificationOut])
+def get_sent_notifications(
+    unread_only: bool = Query(
+        False, description="Get only unread notifications"),
+    limit: int = Query(
+        50, ge=1, le=100, description="Maximum number of notifications to return"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(authenticated)
+):
+    """Get all notifications sent to users in the current user's clan."""
+    try:
+        # Get all groom users in the same clan
+        users_of_my_clan = db.query(User).filter(
+            User.clan_id == current_user.clan_id,
+            User.role == UserRole.groom
+        ).all()
+
+        # Return empty list if no users found
+        if not users_of_my_clan:
+            logger.info(f"No groom users found in clan {current_user.clan_id}")
+            return []
+
+        user_ids = [user.id for user in users_of_my_clan]
+
+        # Build query
+        query = db.query(Notification).filter(
+            Notification.user_id.in_(user_ids)
+        )
+
+        if unread_only:
+            query = query.filter(Notification.is_read == False)
+
+        notifications = query.order_by(
+            Notification.created_at.desc()
+        ).limit(limit).all()
+
+        logger.info(
+            f"Retrieved {len(notifications)} notifications for clan {current_user.clan_id}")
+
+        return notifications
+
+    except Exception as e:
+        logger.error(
+            f"Error retrieving notifications for user {current_user.id}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "خطأ في جلب الإشعارات",
+                "message": str(e),
+                "type": "database_error"
+            }
+        )
 # Also update the get_notification_stats endpoint
 
 
