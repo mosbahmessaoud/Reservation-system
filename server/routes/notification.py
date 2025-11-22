@@ -139,7 +139,7 @@ def get_notifications(
         )
 
 
-@router.get("/sent", response_model=List[NotificationOut])
+@router.get("/sended", response_model=List[NotificationOut])
 def get_sent_notifications(
     unread_only: bool = Query(
         False, description="Get only unread notifications"),
