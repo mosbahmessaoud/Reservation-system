@@ -448,7 +448,6 @@ def mark_all_notifications_as_read(
 def delete_notification(
     notification_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(authenticated)
 ):
     """
     Delete a specific notification.
@@ -458,7 +457,6 @@ def delete_notification(
     try:
         notification = db.query(Notification).filter(
             Notification.id == notification_id,
-            Notification.user_id == current_user.id
         ).first()
 
         if not notification:
@@ -468,7 +466,7 @@ def delete_notification(
         db.commit()
 
         logger.info(
-            f"Notification {notification_id} deleted by user {current_user.id}")
+            f"Notification {notification_id} deleted successfully")
 
         return {
             "message": "تم حذف الإشعار",
