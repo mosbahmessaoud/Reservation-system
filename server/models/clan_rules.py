@@ -1,6 +1,7 @@
 """
 Hall model: Each hall belongs to a clan.
 """
+#server\models\clan_rules.py
 from sqlalchemy import Column, Integer, String, ForeignKey, Text
 from sqlalchemy.orm import relationship
 
