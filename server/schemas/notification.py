@@ -75,6 +75,10 @@ class NotificationOut(NotificationBase):
     created_at: datetime
     read_at: Optional[datetime] = None
 
+    user_first_name: str
+    user_last_name: str
+    user_phone_number: str
+
     class Config:
         from_attributes = True
         json_encoders = {

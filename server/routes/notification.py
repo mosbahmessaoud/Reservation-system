@@ -77,6 +77,67 @@ Replace the get_notifications endpoint in server/routes/notifications.py
 """
 
 
+# @router.get("", response_model=List[NotificationOut])
+# def get_notifications(
+#     unread_only: bool = Query(
+#         False, description="Get only unread notifications"),
+#     limit: int = Query(
+#         50, ge=1, le=100, description="Maximum number of notifications to return"),
+#     db: Session = Depends(get_db),
+#     current_user: User = Depends(authenticated)
+# ):
+#     """Get all notifications for the current user."""
+#     try:
+#         query = db.query(Notification).filter(
+#             Notification.user_id == current_user.id
+#         )
+
+#         if unread_only:
+#             query = query.filter(Notification.is_read == False)
+
+#         notifications = query.order_by(
+#             Notification.created_at.desc()
+#         ).limit(limit).all()
+
+#         logger.info(
+#             f"Retrieved {len(notifications)} notifications for user {current_user.id}")
+
+#         # Manually serialize each notification
+#         result = []
+#         for notif in notifications:
+#             try:
+#                 notification_dict = {
+#                     "id": notif.id,
+#                     "user_id": notif.user_id,
+#                     "reservation_id": notif.reservation_id,  # Can be None now
+#                     "notification_type": notif.notification_type,
+#                     "title": notif.title,
+#                     "message": notif.message,
+#                     "is_read": notif.is_read,
+#                     "is_groom": notif.is_groom,
+#                     "created_at": notif.created_at,
+#                     "read_at": notif.read_at
+#                 }
+#                 result.append(NotificationOut(**notification_dict))
+#             except Exception as serialize_error:
+#                 logger.error(
+#                     f"Error serializing notification {notif.id}: {serialize_error}")
+#                 continue
+
+#         return result
+
+#     except Exception as e:
+#         logger.error(
+#             f"Error retrieving notifications for user {current_user.id}: {str(e)}")
+#         raise HTTPException(
+#             status_code=500,
+#             detail={
+#                 "error": "خطأ في جلب الإشعارات",
+#                 "message": str(e),
+#                 "type": "database_error"
+#             }
+#         )
+
 @router.get("", response_model=List[NotificationOut])
 def get_notifications(
     unread_only: bool = Query(
@@ -86,25 +147,33 @@ def get_notifications(
     db: Session = Depends(get_db),
     current_user: User = Depends(authenticated)
 ):
-    """Get all notifications for the current user."""
+    """Get all notifications for the current user with user details."""
     try:
-        query = db.query(Notification).filter(
+        # Query with JOIN to User table to get user information
+        query = db.query(
+            Notification,
+            User.first_name,
+            User.last_name,
+            User.phone_number
+        ).join(
+            User, Notification.user_id == User.id
+        ).filter(
             Notification.user_id == current_user.id
         )
 
         if unread_only:
             query = query.filter(Notification.is_read == False)
 
-        notifications = query.order_by(
+        notifications_with_user = query.order_by(
             Notification.created_at.desc()
         ).limit(limit).all()
 
         logger.info(
-            f"Retrieved {len(notifications)} notifications for user {current_user.id}")
+            f"Retrieved {len(notifications_with_user)} notifications for user {current_user.id}")
 
-        # Manually serialize each notification
+        # Manually serialize each notification with user info
         result = []
-        for notif in notifications:
+        for notif, first_name, last_name, phone_number in notifications_with_user:
             try:
                 notification_dict = {
                     "id": notif.id,
@@ -116,7 +185,11 @@ def get_notifications(
                     "is_read": notif.is_read,
                     "is_groom": notif.is_groom,
                     "created_at": notif.created_at,
-                    "read_at": notif.read_at
+                    "read_at": notif.read_at,
+                    # Add user information
+                    "user_first_name": first_name,
+                    "user_last_name": last_name,
+                    "user_phone_number": phone_number
                 }
                 result.append(NotificationOut(**notification_dict))
             except Exception as serialize_error:
@@ -138,9 +211,62 @@ def get_notifications(
             }
         )
 
+# @router.get("/sended", response_model=List[NotificationOut])
+# def get_sent_notifications(
+#     unread_only: bool = Query(
+#         False, description="Get only unread notifications"),
+#     limit: int = Query(
+#         50, ge=1, le=100, description="Maximum number of notifications to return"),
+#     db: Session = Depends(get_db),
+#     current_user: User = Depends(authenticated)
+# ):
+#     """Get all notifications sent to users in the current user's clan."""
+#     try:
+#         # Get all groom users in the same clan
+#         users_of_my_clan = db.query(User).filter(
+#             User.clan_id == current_user.clan_id,
+#             User.role == UserRole.groom
+#         ).all()
+
+#         # Return empty list if no users found
+#         if not users_of_my_clan:
+#             logger.info(f"No groom users found in clan {current_user.clan_id}")
+#             return []
+
+#         user_ids = [user.id for user in users_of_my_clan]
+
+#         # Build query
+#         query = db.query(Notification).filter(
+#             Notification.user_id.in_(user_ids)
+#         )
+
+#         if unread_only:
+#             query = query.filter(Notification.is_read == False)
+
+#         notifications = query.order_by(
+#             Notification.created_at.desc()
+#         ).limit(limit).all()
+
+#         logger.info(
+#             f"Retrieved {len(notifications)} notifications for clan {current_user.clan_id}")
+
+#         return notifications
+
+#     except Exception as e:
+#         logger.error(
+#             f"Error retrieving notifications for user {current_user.id}: {str(e)}")
+#         raise HTTPException(
+#             status_code=500,
+#             detail={
+#                 "error": "خطأ في جلب الإشعارات",
+#                 "message": str(e),
+#                 "type": "database_error"
+#             }
+#         )
+
 
 @router.get("/sended", response_model=List[NotificationOut])
-def get_sent_notifications(
+def get_sended_notifications(
     unread_only: bool = Query(
         False, description="Get only unread notifications"),
     limit: int = Query(
@@ -148,49 +274,71 @@ def get_sent_notifications(
     db: Session = Depends(get_db),
     current_user: User = Depends(authenticated)
 ):
-    """Get all notifications sent to users in the current user's clan."""
+    """Get all sent notifications with recipient user details."""
     try:
-        # Get all groom users in the same clan
-        users_of_my_clan = db.query(User).filter(
-            User.clan_id == current_user.clan_id,
-            User.role == UserRole.groom
-        ).all()
-
-        # Return empty list if no users found
-        if not users_of_my_clan:
-            logger.info(f"No groom users found in clan {current_user.clan_id}")
-            return []
-
-        user_ids = [user.id for user in users_of_my_clan]
-
-        # Build query
-        query = db.query(Notification).filter(
-            Notification.user_id.in_(user_ids)
+        # Query with JOIN to User table to get recipient information
+        query = db.query(
+            Notification,
+            User.first_name,
+            User.last_name,
+            User.phone_number
+        ).join(
+            User, Notification.user_id == User.id
+        ).filter(
+            Notification.user_id == current_user.id
         )
 
         if unread_only:
             query = query.filter(Notification.is_read == False)
 
-        notifications = query.order_by(
+        notifications_with_user = query.order_by(
             Notification.created_at.desc()
         ).limit(limit).all()
 
         logger.info(
-            f"Retrieved {len(notifications)} notifications for clan {current_user.clan_id}")
+            f"Retrieved {len(notifications_with_user)} sent notifications for user {current_user.id}")
 
-        return notifications
+        # Manually serialize each notification with user info
+        result = []
+        for notif, first_name, last_name, phone_number in notifications_with_user:
+            try:
+                notification_dict = {
+                    "id": notif.id,
+                    "user_id": notif.user_id,
+                    "reservation_id": notif.reservation_id,
+                    "notification_type": notif.notification_type,
+                    "title": notif.title,
+                    "message": notif.message,
+                    "is_read": notif.is_read,
+                    "is_groom": notif.is_groom,
+                    "created_at": notif.created_at,
+                    "read_at": notif.read_at,
+                    # Add recipient user information
+                    "user_first_name": first_name,
+                    "user_last_name": last_name,
+                    "user_phone_number": phone_number
+                }
+                result.append(NotificationOut(**notification_dict))
+            except Exception as serialize_error:
+                logger.error(
+                    f"Error serializing notification {notif.id}: {serialize_error}")
+                continue
+
+        return result
 
     except Exception as e:
         logger.error(
-            f"Error retrieving notifications for user {current_user.id}: {str(e)}")
+            f"Error retrieving sent notifications for user {current_user.id}: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail={
-                "error": "خطأ في جلب الإشعارات",
+                "error": "خطأ في جلب الإشعارات المرسلة",
                 "message": str(e),
                 "type": "database_error"
             }
         )
+
+
 # Also update the get_notification_stats endpoint
 
 
