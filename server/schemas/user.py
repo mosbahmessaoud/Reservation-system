@@ -39,7 +39,6 @@ class UpdateGroomRequest(BaseModel):
     guardian_relation: Optional[str] = None
     status: Optional[UserStatus] = None
 
-
 class UserBase(BaseModel):
     phone_number: str
     first_name: str
@@ -115,6 +114,7 @@ class UserOut(UserBase):
     guardian_birth_date: Optional[date] = None
     guardian_phone: Optional[str] = None
     guardian_relation: Optional[str] = None
+    access_pages_password_hash: Optional[str]
 
     class Config:
         from_attributes = True
