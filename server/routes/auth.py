@@ -101,12 +101,15 @@ def get_current_user_info(
         "home_address": user.home_address,
         "phone_number": user.phone_number,
 
+
         # Guardian information
         "guardian_name": user.guardian_name,
         "guardian_phone": user.guardian_phone,
         "guardian_home_address": user.guardian_home_address,
         "guardian_birth_address": user.guardian_birth_address,
         "guardian_birth_date": str(user.guardian_birth_date) if user.guardian_birth_date else None,
+
+        "access_pages_password_hash": user.access_pages_password_hash,
     }
 
     return user
