@@ -1,5 +1,7 @@
 
 # server\routes\auth.py
+from server.auth_utils import verify_access_password
+from server.schemas.user import AccessPasswordVerify
 from tokenize import String
 from fastapi import APIRouter, Body, Depends, HTTPException, logger, status
 from platformdirs import user_config_dir
@@ -556,3 +558,49 @@ def update_groom_info(
     db.refresh(groom)
 
     return groom
+
+
+# ---------------------------------------------------------
+# side of password access pages
+
+
+@router.post("/verify-access-password")
+def verify_user_access_password(
+    verify_data: AccessPasswordVerify,
+    db: Session = Depends(get_db),
+    current: User = Depends(auth_utils.get_current_user)
+):
+    """
+    Verify access password for special pages.
+    Works for clan admins and grooms.
+    """
+    # Super admins don't need access passwords
+    if current.role == UserRole.super_admin:
+        return {
+            "valid": True,
+            "message": "المسؤول الأعلى لديه وصول كامل"
+        }
+
+    # Check if user has access password set
+    if not current.access_pages_password_hash:
+        raise HTTPException(
+            status_code=403,
+            detail="لم يتم تعيين كلمة مرور الوصول لهذا المستخدم"
+        )
+
+    # Verify password
+    is_valid = verify_access_password(
+        verify_data.access_password,
+        current.access_pages_password_hash
+    )
+
+    if not is_valid:
+        raise HTTPException(
+            status_code=401,
+            detail="كلمة مرور الوصول غير صحيحة"
+        )
+
+    return {
+        "valid": True,
+        "message": "تم التحقق من كلمة مرور الوصول بنجاح"
+    }

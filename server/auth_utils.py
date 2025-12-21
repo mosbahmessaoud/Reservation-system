@@ -1,7 +1,9 @@
-#server\auth_utils.py
+# server\auth_utils.py
 """
 Authentication utilities: JWT handling, password hashing, security dependencies.
 """
+import string
+import secrets
 import os
 from datetime import datetime, timedelta
 from typing import Optional, List
@@ -330,3 +332,90 @@ def verify_refresh_token(token: str) -> Optional[dict]:
         return payload
     except JWTError:
         return None
+
+
+# now side of password access pages
+
+
+def generate_access_password(length: int = 8) -> str:
+    """
+    Generate a random secure access password
+
+    Args:
+        length: Length of password (default 8)
+
+    Returns:
+        Random password string with letters and digits
+    """
+    alphabet = string.ascii_letters + string.digits
+    password = ''.join(secrets.choice(alphabet) for _ in range(length))
+    return password
+
+
+def hash_access_password(password: str) -> str:
+    """
+    Hash access password using the same method as regular passwords
+
+    Args:
+        password: Plain text access password
+
+    Returns:
+        Hashed password
+    """
+    return get_password_hash(password)
+
+
+def verify_access_password(plain_password: str, hashed_password: str) -> bool:
+    """
+    Verify access password
+
+    Args:
+        plain_password: Plain text password to verify
+        hashed_password: Hashed password from database
+
+    Returns:
+        True if password matches, False otherwise
+    """
+    return verify_password(plain_password, hashed_password)
+
+
+##########
+def require_access_password(
+    access_password: str = Body(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> User:
+    """
+    Dependency to verify access password for special pages.
+    Super admins bypass this check.
+
+    Args:
+        access_password: The access password to verify
+        current_user: Current authenticated user
+        db: Database session
+
+    Returns:
+        User if access is granted
+
+    Raises:
+        HTTPException: If access password is invalid or not set
+    """
+    # Super admins don't need access password
+    if current_user.role == UserRole.super_admin:
+        return current_user
+
+    # Check if access password is set
+    if not current_user.access_pages_password_hash:
+        raise HTTPException(
+            status_code=403,
+            detail="لم يتم تعيين كلمة مرور الوصول. يرجى الاتصال بالمسؤول."
+        )
+
+    # Verify password
+    if not verify_access_password(access_password, current_user.access_pages_password_hash):
+        raise HTTPException(
+            status_code=401,
+            detail="كلمة مرور الوصول غير صحيحة"
+        )
+
+    return current_user

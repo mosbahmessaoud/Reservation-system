@@ -133,3 +133,21 @@ class GroomStatusUpdateResponse(BaseModel):
     message: str
     user_id: int
     new_status: UserStatus
+
+
+class AccessPasswordCreate(BaseModel):
+    """Schema for creating/updating access password"""
+    access_password: str  # Plain text password (will be hashed)
+
+
+class AccessPasswordVerify(BaseModel):
+    """Schema for verifying access password"""
+    user_id: int
+    access_password: str
+
+
+class AccessPasswordResponse(BaseModel):
+    """Response after password generation"""
+    message: str
+    user_id: int
+    generated_password: str  # Return once for user to save

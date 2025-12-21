@@ -1,6 +1,8 @@
 """
 Super Admin routes: manage counties, clans, clan admins.
 """
+from server.auth_utils import generate_access_password, hash_access_password
+from server.schemas.user import AccessPasswordCreate, AccessPasswordResponse
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import and_, or_
@@ -643,4 +645,78 @@ def list_of_all_madaih_committe(county__id: int, db: Session = Depends(get_db)):
 # --------------------------------------------------------
 
 
+# Generate access password for clan admin (Super Admin only)
+@router.post("/clan-admin/{admin_id}/generate-access-password",
+             response_model=AccessPasswordResponse,
+             dependencies=[Depends(super_admin_required)])
+def generate_clan_admin_access_password(
+    admin_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Generate a new access password for a clan admin.
+    Super Admin only.
+    """
+    # Find clan admin
+    admin = db.query(User).filter(
+        User.id == admin_id,
+        User.role == UserRole.clan_admin
+    ).first()
 
+    if not admin:
+        raise HTTPException(
+            status_code=404,
+            detail=f"مسؤول العشيرة بالمعرف {admin_id} غير موجود"
+        )
+
+    # Generate new password
+    new_password = generate_access_password(length=8)
+
+    # Hash and save
+    admin.access_pages_password_hash = hash_access_password(new_password)
+
+    db.commit()
+    db.refresh(admin)
+
+    return {
+        "message": "تم إنشاء كلمة مرور الوصول بنجاح",
+        "user_id": admin.id,
+        "generated_password": new_password  # Show once!
+    }
+
+# Manually set access password for clan admin
+
+
+@router.put("/clan-admin/{admin_id}/set-access-password",
+            response_model=dict,
+            dependencies=[Depends(super_admin_required)])
+def set_clan_admin_access_password(
+    admin_id: int,
+    password_data: AccessPasswordCreate,
+    db: Session = Depends(get_db)
+):
+    """
+    Manually set access password for clan admin.
+    Super Admin only.
+    """
+    admin = db.query(User).filter(
+        User.id == admin_id,
+        User.role == UserRole.clan_admin
+    ).first()
+
+    if not admin:
+        raise HTTPException(
+            status_code=404,
+            detail=f"مسؤول العشيرة بالمعرف {admin_id} غير موجود"
+        )
+
+    # Hash and save the provided password
+    admin.access_pages_password_hash = hash_access_password(
+        password_data.access_password)
+
+    db.commit()
+
+    return {
+        "message": "تم تعيين كلمة مرور الوصول بنجاح",
+        "user_id": admin.id
+    }

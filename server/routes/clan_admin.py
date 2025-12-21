@@ -1,6 +1,8 @@
 """
 Clan Admin routes: CRUD grooms, halls, committees, clan settings.
 """
+from server.schemas.user import AccessPasswordCreate, AccessPasswordResponse
+from server.auth_utils import generate_access_password, hash_access_password
 from datetime import datetime
 import logging
 from typing import List
@@ -698,22 +700,87 @@ def update_status_special_reservation(
     db.refresh(reserv)
     return {"message": "تم تفعيل الحجز الخاص بنجاح." if reserv.status == ReservationSpecialStatus.validated else "تم إلغاء الحجز الخاص بنجاح."}
 
+# -----------------------------------------------------------------------
 
-# @router.delete("/special_reserv/{reserv_id}", dependencies=[Depends(clan_admin_required)])
-# def delete_special_reservation(
-#     reserv_id: int,
-#     db: Session = Depends(get_db),
-#     current: User = Depends(clan_admin_required)
-# ):
-#     reserv = db.query(ReservationSpecial).filter(
-#         ReservationSpecial.id == reserv_id,
-#         ReservationSpecial.clan_id == current.clan_id,
-#         ReservationSpecial.county_id == current.county_id
-#     ).first()
 
-#     if not reserv:
-#         raise HTTPException(status_code=404, detail="الحجز الخاص غير موجود")
+# Generate access password for groom (Clan Admin only)
 
-#     db.delete(reserv)
-#     db.commit()
-#     return {"message": f"تم حذف الحجز الخاص ذو المعرف {reserv_id} بنجاح."}
+
+@router.post("/groom/{groom_id}/generate-access-password",
+             response_model=AccessPasswordResponse,
+             dependencies=[Depends(clan_admin_required)])
+def generate_groom_access_password(
+    groom_id: int,
+    db: Session = Depends(get_db),
+    current: User = Depends(clan_admin_required)
+):
+    """
+    Generate access password for a groom in the admin's clan.
+    Clan Admin only.
+    """
+    # Find groom
+    groom = db.query(User).filter(
+        User.id == groom_id,
+        User.role == UserRole.groom,
+        User.clan_id == current.clan_id
+    ).first()
+
+    if not groom:
+        raise HTTPException(
+            status_code=404,
+            detail=f"العريس بالمعرف {groom_id} غير موجود أو ليس في عشيرتك"
+        )
+
+    # Generate new password
+    new_password = generate_access_password(length=8)
+
+    # Hash and save
+    groom.access_pages_password_hash = hash_access_password(new_password)
+
+    db.commit()
+    db.refresh(groom)
+
+    return {
+        "message": "تم إنشاء كلمة مرور الوصول بنجاح",
+        "user_id": groom.id,
+        "generated_password": new_password  # Show once!
+    }
+
+# Manually set access password for groom
+
+
+@router.put("/groom/{groom_id}/set-access-password",
+            response_model=dict,
+            dependencies=[Depends(clan_admin_required)])
+def set_groom_access_password(
+    groom_id: int,
+    password_data: AccessPasswordCreate,
+    db: Session = Depends(get_db),
+    current: User = Depends(clan_admin_required)
+):
+    """
+    Manually set access password for groom.
+    Clan Admin only.
+    """
+    groom = db.query(User).filter(
+        User.id == groom_id,
+        User.role == UserRole.groom,
+        User.clan_id == current.clan_id
+    ).first()
+
+    if not groom:
+        raise HTTPException(
+            status_code=404,
+            detail=f"العريس بالمعرف {groom_id} غير موجود أو ليس في عشيرتك"
+        )
+
+    # Hash and save
+    groom.access_pages_password_hash = hash_access_password(
+        password_data.access_password)
+
+    db.commit()
+
+    return {
+        "message": "تم تعيين كلمة مرور الوصول بنجاح",
+        "user_id": groom.id
+    }

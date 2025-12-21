@@ -17,7 +17,7 @@ class UserRole(str, enum.Enum):
 
 class UserStatus(str, enum.Enum):
     active = "active"
-    inactive = "inactive" 
+    inactive = "inactive"
 
 
 class User(Base):
@@ -26,6 +26,10 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     phone_number = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
+
+    access_pages_password_hash = Column(
+        String, nullable=True)  # NULL for super_admin
+
     role = Column(Enum(UserRole), nullable=False)
 
     # Common names
