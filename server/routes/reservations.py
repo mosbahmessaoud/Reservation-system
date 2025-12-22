@@ -1000,6 +1000,80 @@ def get_all_reservations(
 
     return result
 
+
+@router.get("/clan_admin/all_reservations")
+def get_all_reservations_for_clan_admin(
+    current_user: User = Depends(clan_admin_required),
+    db: Session = Depends(get_db)
+):
+    """Get all reservations for clan admin with explicit role check"""
+    if current_user.role != UserRole.clan_admin:
+        raise HTTPException(
+            status_code=403,
+            detail="هذه الصفحة متاحة فقط لمديري العشائر"
+        )
+
+    reservations = db.query(Reservation).options(
+        joinedload(Reservation.clan),
+        joinedload(Reservation.county),
+        joinedload(Reservation.hall),
+        joinedload(Reservation.haia_committee),
+        joinedload(Reservation.madaeh_committee),
+        joinedload(Reservation.groom)
+    ).filter(
+        Reservation.clan_id == current_user.clan_id,
+        Reservation.county_id == current_user.county_id
+    ).all()
+
+    result = []
+    for reservation in reservations:
+        reservation_dict = {
+            "id": reservation.id,
+            "groom_id": reservation.groom_id,
+            "clan_id": reservation.clan_id,
+            "county_id": reservation.county_id,
+            "date1": str(reservation.date1) if reservation.date1 else None,
+            "date2": str(reservation.date2) if reservation.date2 else None,
+            "date2_bool": reservation.date2_bool,
+            "allow_others": reservation.allow_others,
+            "join_to_mass_wedding": reservation.join_to_mass_wedding,
+            "status": reservation.status,
+            "payment_valid": reservation.payment_valid,
+            "created_at": reservation.created_at.isoformat() if reservation.created_at else None,
+
+            # Joined data
+            "clan_name": reservation.clan.name if reservation.clan else None,
+            "county_name": reservation.county.name if reservation.county else None,
+            "hall_name": reservation.hall.name if reservation.hall else None,
+            "hall_id": reservation.hall_id,
+
+            # Committee information
+            "haia_committee_id": reservation.haia_committee_id,
+            "haia_committee_name": reservation.haia_committee.name if reservation.haia_committee else None,
+            "madaeh_committee_id": reservation.madaeh_committee_id,
+            "madaeh_committee_name": reservation.madaeh_committee.name if reservation.madaeh_committee else None,
+
+            # Personal information
+            "pdf_url": reservation.pdf_url,
+            "first_name": reservation.first_name,
+            "last_name": reservation.last_name,
+            "father_name": reservation.father_name,
+            "grandfather_name": reservation.grandfather_name,
+            "birth_date": str(reservation.birth_date) if reservation.birth_date else None,
+            "birth_address": reservation.birth_address,
+            "home_address": reservation.home_address,
+            "phone_number": reservation.phone_number,
+
+            # Guardian information
+            "guardian_name": reservation.guardian_name,
+            "guardian_phone": reservation.guardian_phone,
+            "guardian_home_address": reservation.guardian_home_address,
+            "guardian_birth_address": reservation.guardian_birth_address,
+            "guardian_birth_date": str(reservation.guardian_birth_date) if reservation.guardian_birth_date else None,
+        }
+        result.append(reservation_dict)
+
+    return result
 ##########
 
 

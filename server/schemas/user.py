@@ -114,7 +114,7 @@ class UserOut(UserBase):
     guardian_birth_date: Optional[date] = None
     guardian_phone: Optional[str] = None
     guardian_relation: Optional[str] = None
-    access_pages_password_hash: Optional[str]
+    access_pages_password_hash: Optional[str] = None
 
     class Config:
         from_attributes = True
