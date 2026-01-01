@@ -149,7 +149,8 @@ def login(
         )
 
     if not user.access_pages_password_hash and user.role == UserRole.groom:
-        access_pages_password = "tachirt"+user.phone_number
+        access_pages_password = "تعشيرت"
+        # access_pages_password = "تعشيرت"+user.phone_number
         hashed_access_pages_password = auth_utils.get_password_hash(
             access_pages_password)
         user.access_pages_password_hash = hashed_access_pages_password
@@ -200,7 +201,8 @@ def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=404, detail="العشيرة لا تنتمي إلى هذه المقاطعة.")
 
-    access_pages_password = "tachirt"+user_in.phone_number
+    access_pages_password = "تعشيرت"
+    # access_pages_password = "تعشيرت"+user_in.phone_number
     hashed_access_pages_password = auth_utils.get_password_hash(
         access_pages_password)
     hashed_password = auth_utils.get_password_hash(user_in.password)
