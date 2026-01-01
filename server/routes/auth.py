@@ -148,6 +148,14 @@ def login(
             detail="حسابك غير نشط. يرجى مراجعة مدير العشيرة للحصول على المساعدة."
         )
 
+    if not user.access_pages_password_hash and user.role == UserRole.groom:
+        access_pages_password = "tachirt"+user.phone_number
+        hashed_access_pages_password = auth_utils.get_password_hash(
+            access_pages_password)
+        user.access_pages_password_hash = hashed_access_pages_password
+        db.commit()
+        db.refresh(user)
+
     access_token = auth_utils.create_access_token(
         data={"sub": str(user.id), "role": user.role}
     )
@@ -192,14 +200,19 @@ def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=404, detail="العشيرة لا تنتمي إلى هذه المقاطعة.")
 
+    access_pages_password = "tachirt"+user_in.phone_number
+    hashed_access_pages_password = auth_utils.get_password_hash(
+        access_pages_password)
     hashed_password = auth_utils.get_password_hash(user_in.password)
     otp_code = generate_otp_code()
+
     # guardian_phone = validate_algerian_number(user_in.guardian_phone)
     validate_number_phone(user_in.phone_number)
     validate_number_phone_of_guardian(user_in.guardian_phone)
     user = User(
         phone_number=user_in.phone_number,
         password_hash=hashed_password,
+        access_pages_password_hash=hashed_access_pages_password,
         role=UserRole.groom,
         first_name=user_in.first_name,
         last_name=user_in.last_name,
@@ -217,6 +230,7 @@ def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
         guardian_birth_date=user_in.guardian_birth_date,
         guardian_relation=user_in.guardian_relation,
         otp_code=otp_code,
+
         otp_expiration=datetime.utcnow() + timedelta(hours=2),
         # New fields from updated model
         created_at=datetime.utcnow(),
