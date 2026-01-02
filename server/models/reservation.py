@@ -49,7 +49,7 @@ class Reservation(Base):
         nullable=False
     )
     payment = Column(Numeric(15, 2), nullable=True, default=0.00)  # new added
- 
+   
     # Selections (nullable until finalized)
     hall_id = Column(Integer, ForeignKey("halls_table.id"), nullable=True)
     haia_committee_id = Column(Integer, ForeignKey(

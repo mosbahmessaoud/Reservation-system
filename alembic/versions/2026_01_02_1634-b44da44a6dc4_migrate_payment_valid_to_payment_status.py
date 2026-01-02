@@ -84,4 +84,7 @@ def downgrade() -> None:
     op.drop_column('reservations', 'payment')
     op.drop_column('reservations', 'payment_status')
     op.drop_column('clan_settings', 'payment_should_pay')
+
+    # Drop the enum type
+    sa.Enum(name='paymentstatus').drop(op.get_bind(), checkfirst=True)
     # ### end Alembic commands ###

@@ -1,6 +1,6 @@
 # server/schemas/reservation.py
 from decimal import Decimal
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime, date
 from typing import Optional
 from enum import Enum
@@ -37,8 +37,18 @@ class ReservationCreate(ReservationBase):
 
 
 class ReservationsPaymentUpdate(BaseModel):
-    """Schema for updating payment status"""
-    payment_status: PaymentStatus
+    """Schema for updating payment status and amount"""
+    payment_status: Optional[PaymentStatus] = None
+    payment: Optional[Decimal] = Field(
+        None, ge=0, decimal_places=2, description="Payment amount")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "payment_status": "partially_paid",
+                "payment": 500.00
+            }
+        }
 
 
 class ReservationOut(BaseModel):
@@ -60,8 +70,8 @@ class ReservationOut(BaseModel):
 
     # Status and timing
     status: Optional[ReservationStatus] = None
-    # UPDATED: Changed from payment_valid
     payment_status: Optional[PaymentStatus] = None
+    payment: Optional[Decimal] = None  # NEW: Payment amount field
     created_at: Optional[datetime] = None
 
     # Committee assignments

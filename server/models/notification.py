@@ -29,7 +29,7 @@ class Notification(Base):
     # The reservation that triggered this notification
     reservation_id = Column(Integer, ForeignKey(
         "reservations.id", ondelete="CASCADE"), nullable=True)
-
+ 
     # Notification details
     notification_type = Column(Enum(NotificationType), nullable=False)
     title = Column(String, nullable=False)
