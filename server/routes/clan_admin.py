@@ -505,7 +505,7 @@ def delete_clan_rules(
 
 
 @router.post("/{reservation_id}/change_payment_status", response_model=dict, dependencies=[Depends(clan_admin_required)])
-def cancel_a_groom_reservation(reservation_id: int, db: Session = Depends(get_db), current: User = Depends(clan_admin_required)):
+def cancel_a_groom_reservation(reservation_id: int, data:ReservationsPaymentUpdate , db: Session = Depends(get_db), current: User = Depends(clan_admin_required)):
 
     resv = db.query(Reservation).filter(
         Reservation.id == reservation_id,
@@ -552,48 +552,48 @@ def get_special_reservations(db: Session = Depends(get_db), current: User = Depe
 #############
 
 
-@router.put("/reservations/payment_update/{groom_id}", dependencies=[Depends(clan_admin_required)])
-def update_payment(groom_id: int, db: Session = Depends(get_db), current: User = Depends(clan_admin_required)):
-    groom = db.query(User).filter(
-        User.id == groom_id,
-        User.role == UserRole.groom,
-    ).first()
-    if not groom:
-        raise HTTPException(
-            status_code=404, detail="العريس غير موجود أو ليس في عشيرتك")
+# @router.put("/reservations/payment_update/{groom_id}", dependencies=[Depends(clan_admin_required)])
+# def update_payment(groom_id: int, db: Session = Depends(get_db), current: User = Depends(clan_admin_required)):
+#     groom = db.query(User).filter(
+#         User.id == groom_id,
+#         User.role == UserRole.groom,
+#     ).first()
+#     if not groom:
+#         raise HTTPException(
+#             status_code=404, detail="العريس غير موجود أو ليس في عشيرتك")
 
-    reservation_pending = db.query(Reservation).filter(
-        Reservation.county_id == current.county_id,
-        Reservation.clan_id == current.clan_id,
-        Reservation.groom_id == groom.id,
-        Reservation.status == ReservationStatus.pending_validation
-    ).first()
-    reservation_valid = db.query(Reservation).filter(
-        Reservation.county_id == current.county_id,
-        Reservation.clan_id == current.clan_id,
-        Reservation.groom_id == groom.id,
-        Reservation.status == ReservationStatus.validated
-    ).first()
+#     reservation_pending = db.query(Reservation).filter(
+#         Reservation.county_id == current.county_id,
+#         Reservation.clan_id == current.clan_id,
+#         Reservation.groom_id == groom.id,
+#         Reservation.status == ReservationStatus.pending_validation
+#     ).first()
+#     reservation_valid = db.query(Reservation).filter(
+#         Reservation.county_id == current.county_id,
+#         Reservation.clan_id == current.clan_id,
+#         Reservation.groom_id == groom.id,
+#         Reservation.status == ReservationStatus.validated
+#     ).first()
 
-    if not reservation_pending and not reservation_valid:
-        raise HTTPException(
-            status_code=404, detail=f"لم يتم العثور على حجوزات معلقة أو مؤكدة لمعرف العريس {groom_id}")
+#     if not reservation_pending and not reservation_valid:
+#         raise HTTPException(
+#             status_code=404, detail=f"لم يتم العثور على حجوزات معلقة أو مؤكدة لمعرف العريس {groom_id}")
 
-    if reservation_pending:
-        reservation_pending.status = ReservationStatus.validated
-        reservation_pending.payment_valid = True  # Mark payment as valid
-        db.add(reservation_pending)
-        db.commit()
-        return {"message": f"تم تحديث الحجز المعلق للعريس {groom_id} إلى مؤكد."}
+#     if reservation_pending:
+#         reservation_pending.status = ReservationStatus.validated
+#         reservation_pending.payment_valid = True  # Mark payment as valid
+#         db.add(reservation_pending)
+#         db.commit()
+#         return {"message": f"تم تحديث الحجز المعلق للعريس {groom_id} إلى مؤكد."}
 
-    if reservation_valid:
-        reservation_valid.status = ReservationStatus.validated
-        reservation_valid.payment_valid = False  # Mark payment as valid
-        db.add(reservation_valid)
-        db.commit()
-        return {"message": f"تم تحديث الحجز المؤكد للعريس {groom_id} إلى معلق."}
+#     if reservation_valid:
+#         reservation_valid.status = ReservationStatus.validated
+#         reservation_valid.payment_valid = False  
+#         db.add(reservation_valid)
+#         db.commit()
+#         return {"message": f"تم تحديث الحجز المؤكد للعريس {groom_id} إلى معلق."}
 
-    return {"message": "لم يتم اتخاذ أي إجراء."}
+#     return {"message": "لم يتم اتخاذ أي إجراء."}
 
 
 ################# clan manage a special reservation ################################

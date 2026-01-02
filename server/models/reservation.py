@@ -2,7 +2,7 @@
 """
 Reservation model: Each reservation is for a groom, in a clan, for 1 or 2 consecutive days.
 """
-from sqlalchemy import Column, Integer, Date, Boolean, ForeignKey, Null, String, Enum, DateTime, null, true
+from sqlalchemy import Column, Integer, Date, Boolean, ForeignKey, Null, Numeric, String, Enum, DateTime, null, true
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
@@ -14,6 +14,12 @@ class ReservationStatus(str, enum.Enum):
     pending_validation = "pending_validation"
     validated = "validated"
     cancelled = "cancelled"
+
+class PaymentStatus(str, enum.Enum):
+    """Payment status for reservations"""
+    paid = "paid"
+    not_paid = "not_paid"
+    partially_paid = "partially_paid"
 
 
 class Reservation(Base):
@@ -35,8 +41,15 @@ class Reservation(Base):
     status = Column(Enum(ReservationStatus),
                     default=ReservationStatus.pending_validation, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
-    payment_valid = Column(Boolean, default=False, nullable=True)  # added new
-
+    # payment_valid = Column(Boolean, default=False, nullable=True)  # added new
+        # UPDATED: Changed from payment_valid (Boolean) to payment_status (Enum)
+    payment_status = Column(
+        Enum(PaymentStatus),
+        default=PaymentStatus.not_paid,
+        nullable=False
+    )
+    payment = Column(Numeric(15, 2), nullable=True, default=0.00)  # new added
+ 
     # Selections (nullable until finalized)
     hall_id = Column(Integer, ForeignKey("halls_table.id"), nullable=True)
     haia_committee_id = Column(Integer, ForeignKey(

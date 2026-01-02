@@ -1,6 +1,8 @@
 """
 Clan settings schemas.
 """
+from decimal import Decimal
+from token import OP
 from pydantic import BaseModel
 from typing import Optional
 
@@ -17,6 +19,7 @@ class ClanSettingsBase(BaseModel):
     days_to_accept_invites: Optional[str]
     accept_invites_times: Optional[str]
     allow_cross_clan_reservations: Optional[bool]
+    payment_should_pay: Optional[Decimal] = None
 
 
 class ClanSettingsCreate(ClanSettingsBase):

@@ -1,7 +1,8 @@
-# server\schemas\reservation.py
+# server/schemas/reservation.py
+from decimal import Decimal
 from pydantic import BaseModel
 from datetime import datetime, date
-from typing import Literal, Optional
+from typing import Optional
 from enum import Enum
 
 
@@ -9,6 +10,13 @@ class ReservationStatus(str, Enum):
     pending_validation = "pending_validation"
     validated = "validated"
     cancelled = "cancelled"
+
+
+class PaymentStatus(str, Enum):
+    """Payment status options"""
+    paid = "paid"
+    not_paid = "not_paid"
+    partially_paid = "partially_paid"
 
 
 class ReservationBase(BaseModel):
@@ -26,6 +34,11 @@ class ReservationBase(BaseModel):
 
 class ReservationCreate(ReservationBase):
     pass
+
+
+class ReservationsPaymentUpdate(BaseModel):
+    """Schema for updating payment status"""
+    payment_status: PaymentStatus
 
 
 class ReservationOut(BaseModel):
@@ -47,7 +60,8 @@ class ReservationOut(BaseModel):
 
     # Status and timing
     status: Optional[ReservationStatus] = None
-    payment_valid: Optional[bool] = None
+    # UPDATED: Changed from payment_valid
+    payment_status: Optional[PaymentStatus] = None
     created_at: Optional[datetime] = None
 
     # Committee assignments
@@ -72,9 +86,8 @@ class ReservationOut(BaseModel):
     reservation_id: Optional[int] = None
 
     class Config:
-        from_attributes = True  # For SQLAlchemy ORM compatibility
+        from_attributes = True
 
-    # Alternative minimal response structure for the endpoint return
     @classmethod
     def create_response(cls, reservation_id: int, pdf_url: str):
         """Create a minimal response matching the endpoint return"""
