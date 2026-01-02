@@ -28,8 +28,8 @@ class ClanSettings(Base):
     days_to_accept_invites = Column(String, nullable=True)
     accept_invites_times = Column(String, nullable=True)
 
-    payment_should_pay = Column(Numeric(15, 2), nullable=True, default=0.00)
-
+    payment_should_pay = Column(
+        Numeric(15, 2), nullable=True, default=0.00, server_default='0.00')
     # mew columns
     years_max_reserv_GroomFromOutClan = Column(Integer, default=3)
     years_max_reserv_GrooomFromOriginClan = Column(Integer, default=1)

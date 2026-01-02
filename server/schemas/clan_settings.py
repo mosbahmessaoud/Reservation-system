@@ -19,7 +19,11 @@ class ClanSettingsBase(BaseModel):
     days_to_accept_invites: Optional[str]
     accept_invites_times: Optional[str]
     allow_cross_clan_reservations: Optional[bool]
-    payment_should_pay: Optional[Decimal] = None
+    payment_should_pay: Decimal = Decimal("0.00")  # Set default here
+
+
+class ClanSettingUpdatePayment(BaseModel):
+    payment_should_pay: Optional[Decimal]
 
 
 class ClanSettingsCreate(ClanSettingsBase):

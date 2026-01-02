@@ -26,7 +26,7 @@ from server.utils.pdf_generator import generate_wedding_pdf, test_pdf_generation
 from server.models.user import User
 from ..auth_utils import get_current_user, get_db, require_role
 from ..models.user import User, UserRole
-from ..models.reservation import Reservation, ReservationStatus
+from ..models.reservation import PaymentStatus, Reservation, ReservationStatus
 from ..models.clan_settings import ClanSettings
 from ..schemas.reservation import ReservationCreate, ReservationCreateResponse, ReservationOut
 from ..utils.notification_service import NotificationService
@@ -400,7 +400,7 @@ def create_reservation(resv_in: ReservationCreate, db: Session = Depends(get_db)
             allow_others=bool(
                 resv_in.join_to_mass_wedding or resv_in.allow_others),
             status=ReservationStatus.pending_validation,
-            payment_status="not_pay",
+            payment_status=PaymentStatus.not_paid,
             created_at=datetime.utcnow(),
             hall_id=hall.id,
             haia_committee_id=resv_in.haia_committee_id,

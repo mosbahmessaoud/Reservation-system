@@ -37,18 +37,9 @@ class ReservationCreate(ReservationBase):
 
 
 class ReservationsPaymentUpdate(BaseModel):
-    """Schema for updating payment status and amount"""
-    payment_status: Optional[PaymentStatus] = None
+    """Schema for updating payment amount"""
     payment: Optional[Decimal] = Field(
         None, ge=0, decimal_places=2, description="Payment amount")
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "payment_status": "partially_paid",
-                "payment": 500.00
-            }
-        }
 
 
 class ReservationOut(BaseModel):

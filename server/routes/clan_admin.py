@@ -1,19 +1,21 @@
 """
 Clan Admin routes: CRUD grooms, halls, committees, clan settings.
 """
+from decimal import Decimal
+from http import HTTPStatus
 from server.schemas.user import AccessPasswordCreate, AccessPasswordResponse
 from server.auth_utils import generate_access_password, hash_access_password
 from datetime import datetime
 import logging
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query
-from httpx import delete
+from httpx import HTTPStatusError, delete
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import joinedload
 
 from server.CRUD import clan_rules_crud
-from server.models.reservation import Reservation, ReservationStatus
+from server.models.reservation import PaymentStatus, Reservation, ReservationStatus
 from server.models.reservation_clan_admin import ReservationSpecial, ReservationSpecialStatus
 from server.schemas.clan import ClanOut
 from server.schemas.clan_rules_schema import ClanRulesCreate, ClanRulesResponse, ClanRulesUpdate
@@ -23,6 +25,7 @@ from server.routes.reservations import create_reservation
 from server.schemas.reservation import ReservationCreate, ReservationsPaymentUpdate
 from server.schemas.reservations_special import ReservationSpecialCreate, ReservationSpecialOut
 from server.CRUD.clan_rules_crud import update
+from server.routes.auth import clan_admin_required
 from ..auth_utils import get_current_user, get_db, require_role
 from ..models.user import User, UserRole, UserStatus
 from ..models.hall import Hall
@@ -32,7 +35,7 @@ from ..models.clan_settings import ClanSettings
 from ..schemas.user import DeleteResponse, StatusUpdateRequest, UserCreate, UserOut
 from ..schemas.hall import HallCreate, HallOut
 # from ..schemas.madaih_committe import
-from ..schemas.clan_settings import ClanSettingsCreate, ClanSettingsOut, ClanSettingsUpdate
+from ..schemas.clan_settings import ClanSettingUpdatePayment, ClanSettingsCreate, ClanSettingsOut, ClanSettingsUpdate
 
 router = APIRouter(
     prefix="/clan-admin",
@@ -498,45 +501,171 @@ def delete_clan_rules(
             detail="قواعد العشيرة غير موجودة"
         )
 
+# post a new payment on clan setting
+
+
+@router.post("/update_payment", dependencies=[Depends(clan_admin_required)])
+def update_payment(
+    data: ClanSettingUpdatePayment,
+    current: User = Depends(clan_admin_required),
+    db: Session = Depends(get_db)
+):
+
+    clansetting = db.query(ClanSettings).filter(
+        ClanSettings.clan_id == current.clan_id,
+    ).first()
+
+    if not clansetting:
+        raise HTTPException(status_code=401)
+
+    clansetting.payment_should_pay = data.payment_should_pay
+
+    db.commit()
+    db.refresh(clansetting)
+
+# geting the requed payment of a clan
+
+
+@router.get("/required_payment", dependencies=[Depends(clan_admin_required)])
+def get_required_payment(
+    current: User = Depends(clan_admin_required),
+    db: Session = Depends(get_db)
+):
+
+    clan_payment = db.query(ClanSettings).filter(
+        ClanSettings.clan_id == current.clan_id,
+    ).first()
+
+    if not clan_payment:
+        raise HTTPException(status_code=401)
+
+    return clan_payment.payment_should_pay
+
 ################ change payment status ###############
 
 
-# a clan admin change the payment status
-
-
 @router.post("/{reservation_id}/change_payment_status", response_model=dict, dependencies=[Depends(clan_admin_required)])
-def cancel_a_groom_reservation(reservation_id: int, data: ReservationsPaymentUpdate, db: Session = Depends(get_db), current: User = Depends(clan_admin_required)):
-
+def change_payment_status(
+    reservation_id: int,
+    data: ReservationsPaymentUpdate,
+    db: Session = Depends(get_db),
+    current: User = Depends(clan_admin_required)
+):
+    # Find the reservation
     resv = db.query(Reservation).filter(
         Reservation.id == reservation_id,
         Reservation.status != ReservationStatus.cancelled
     ).first()
+
     if not resv:
         raise HTTPException(
-            status_code=404, detail=f"لا يوجد حجز معلق أو مصدق عليه   ")
+            status_code=404,
+            detail="لا يوجد حجز معلق أو مصدق عليه"
+        )
 
-    # Store previous status before toggling
-    previous_status = resv.payment_valid
+    # Get clan payment settings
+    clan_payment = db.query(ClanSettings).filter(
+        ClanSettings.clan_id == resv.clan_id
+    ).first()
 
-    # Toggle payment status
-    resv.payment_valid = not resv.payment_valid
+    if not clan_payment or not clan_payment.payment_should_pay:
+        raise HTTPException(
+            status_code=400,
+            detail="لم يتم تحديد المبلغ المطلوب للعشيرة"
+        )
 
-    db.commit()
-    db.refresh(resv)
+    # Store previous status before changing
+    previous_status = resv.payment_status
+    previous_payment = float(resv.payment) if resv.payment else 0.00
 
-    # Create appropriate message based on new status
-    status_message = "تم تأكيد دفع العريس بنجاح" if resv.payment_valid else "تم إلغاء تأكيد دفع العريس"
+    # Determine payment status based on amount
+    if data.payment == 0 or data.payment is None:
+        resv.payment_status = PaymentStatus.not_paid
+        resv.payment = Decimal("0.00")
+        status_message = "لا يوجد دفع"
+    elif data.payment < clan_payment.payment_should_pay:
+        resv.payment_status = PaymentStatus.partially_paid
+        resv.payment = data.payment
+        status_message = "تم تأكيد دفع جزء من المبلغ"
+    else:
+        resv.payment_status = PaymentStatus.paid
+        resv.payment = data.payment
+        status_message = "تم تأكيد دفع كامل المبلغ"
+
+    try:
+        db.commit()
+        db.refresh(resv)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"خطأ في تحديث حالة الدفع: {str(e)}"
+        )
 
     return {
         "message": status_message,
         "reservation": {
             "id": resv.id,
             "groom_id": resv.groom_id,
-            "payment_valid": resv.payment_valid,
-            "previous_payment_status": previous_status,
-            "status": resv.status.value
+            "payment_status": resv.payment_status.value,  # Fixed: use .value for enum
+            "previous_payment_status": previous_status.value,  # Fixed: use .value for enum
+            # Fixed: convert to float
+            "payment": float(resv.payment) if resv.payment else 0.00,
+            "previous_payment": previous_payment,
+            "required_payment": float(clan_payment.payment_should_pay),
+            "status": resv.status.value  # Fixed: use .value for enum
         }
     }
+# a clan admin change the payment status
+
+
+# @router.post("/{reservation_id}/change_payment_status", response_model=dict, dependencies=[Depends(clan_admin_required)])
+# def cancel_a_groom_reservation(reservation_id: int, data: ReservationsPaymentUpdate, db: Session = Depends(get_db), current: User = Depends(clan_admin_required)):
+
+#     resv = db.query(Reservation).filter(
+#         Reservation.id == reservation_id,
+#         Reservation.status != ReservationStatus.cancelled
+#     ).first()
+
+#     clan_payment = db.query(ClanSettings).filter(
+#         ClanSettings.clan_id == resv.clan_id
+#     ).first()
+
+#     if not resv:
+#         raise HTTPException(
+#             status_code=404, detail=f"لا يوجد حجز معلق أو مصدق عليه   ")
+
+#     # Store previous status before toggling
+#     previous_status = resv.payment_status
+
+#     if data.payment == "0.00":
+#         resv.payment_status = PaymentStatus.not_paid
+#         status_message = "لا يوجد دفع "
+
+#     elif data.payment < clan_payment.payment_should_pay:
+#         resv.payment_status = PaymentStatus.partially_paid
+#         status_message = "تم تأكيد دفع جزء من المبلغ"
+
+#     else:
+#         resv.payment_status = PaymentStatus.paid
+#         status_message = "تم تأكيد دفع كل من المبلغ"
+
+#     resv.payment = data.payment
+
+#     db.commit()
+#     db.refresh(resv)
+
+#     return {
+#         "message": status_message,
+#         "reservation": {
+#             "id": resv.id,
+#             "groom_id": resv.groom_id,
+#             "payment_valid": resv.payment_status,
+#             "previous_payment_status": previous_status,
+#             "payment": resv.payment  # nead fixed
+#             # "status": resv.  # nead fixed
+#         }
+#     }
 
 ###########
 # get all special reservations
