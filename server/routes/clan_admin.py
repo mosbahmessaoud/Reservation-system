@@ -20,7 +20,7 @@ from server.schemas.clan_rules_schema import ClanRulesCreate, ClanRulesResponse,
 from server.schemas.haia_committe import HaiaCreate, HaiaOut, HaiaUpdate
 from server.schemas.madaih_committe import MadaihCreate, MadaihOut, MadaihUpdate
 from server.routes.reservations import create_reservation
-from server.schemas.reservation import ReservationCreate
+from server.schemas.reservation import ReservationCreate, ReservationsPaymentUpdate
 from server.schemas.reservations_special import ReservationSpecialCreate, ReservationSpecialOut
 from server.CRUD.clan_rules_crud import update
 from ..auth_utils import get_current_user, get_db, require_role
@@ -505,7 +505,7 @@ def delete_clan_rules(
 
 
 @router.post("/{reservation_id}/change_payment_status", response_model=dict, dependencies=[Depends(clan_admin_required)])
-def cancel_a_groom_reservation(reservation_id: int, data:ReservationsPaymentUpdate , db: Session = Depends(get_db), current: User = Depends(clan_admin_required)):
+def cancel_a_groom_reservation(reservation_id: int, data: ReservationsPaymentUpdate, db: Session = Depends(get_db), current: User = Depends(clan_admin_required)):
 
     resv = db.query(Reservation).filter(
         Reservation.id == reservation_id,
@@ -588,7 +588,7 @@ def get_special_reservations(db: Session = Depends(get_db), current: User = Depe
 
 #     if reservation_valid:
 #         reservation_valid.status = ReservationStatus.validated
-#         reservation_valid.payment_valid = False  
+#         reservation_valid.payment_valid = False
 #         db.add(reservation_valid)
 #         db.commit()
 #         return {"message": f"تم تحديث الحجز المؤكد للعريس {groom_id} إلى معلق."}
