@@ -678,8 +678,6 @@ def bulk_delete_notifications(
     Delete notifications 
     """
 
-    # Calculate the date 2 months ago
-
     # Get all user IDs in the same clan
     user_ids = db.query(User.id).filter(
         User.clan_id == current_user.clan_id,
@@ -735,11 +733,12 @@ def bulk_delete_notifications(
     # logger.info(
     #     f"Deleted {count} notifications older than 2 months for clan {current_user.clan_id}")
 
-    return {
-        "message": f"تم حذف {count} إشعار",
-        "count": count,
-        "success": True
-    }
+    return BulkNotificationResponse(
+        message=f"تم حذف {count} إشعار",
+        count=count,
+        success=True
+    )
+
 
 # # Admin-only routes
 # @router.post("/create-general", response_model=NotificationOut, dependencies=[Depends(clan_admin_required)])
