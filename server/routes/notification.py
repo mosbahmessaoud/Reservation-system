@@ -705,6 +705,42 @@ def bulk_delete_notifications(
         "success": True
     }
 
+
+@router.delete("/bulk-delete", response_model=BulkNotificationResponse)
+def bulk_delete_notifications(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(authenticated)
+):
+    """
+    Delete notifications 
+    """
+
+    # Calculate the date 2 months ago
+
+    # Get all user IDs in the same clan
+    user_ids = db.query(User.id).filter(
+        User.clan_id == current_user.clan_id,
+    ).all()
+
+    # Extract IDs from the result tuples
+    user_ids = [user_id[0] for user_id in user_ids]
+
+    # Delete notifications older than 2 months for these users
+    count = db.query(Notification).filter(
+        Notification.user_id.in_(user_ids),
+    ).delete(synchronize_session=False)
+
+    db.commit()
+
+    # logger.info(
+    #     f"Deleted {count} notifications older than 2 months for clan {current_user.clan_id}")
+
+    return {
+        "message": f"تم حذف {count} إشعار",
+        "count": count,
+        "success": True
+    }
+
 # # Admin-only routes
 # @router.post("/create-general", response_model=NotificationOut, dependencies=[Depends(clan_admin_required)])
 # def create_general_notification(
