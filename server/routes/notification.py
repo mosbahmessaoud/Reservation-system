@@ -7,7 +7,6 @@ import logging
 from re import U
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
-from numpy import roll
 from sqlalchemy.orm import Session
 from datetime import datetime
 
