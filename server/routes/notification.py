@@ -2,6 +2,7 @@
 """
 Notification routes for grooms and clan admins.
 """
+from datetime import datetime, timedelta
 import logging
 from re import U
 from typing import List, Optional
@@ -636,28 +637,36 @@ def bulk_delete_notifications(
     current_user: User = Depends(authenticated)
 ):
     """
-    Delete multiple notifications at once.
-
-    - **notification_ids**: List of notification IDs to delete
+    Delete notifications older than 2 months
     """
 
-    count = db.query(Notification).filter(
-        Notification.user_id == current_user.id
+    # Calculate the date 2 months ago
+    two_months_ago = datetime.utcnow() - timedelta(days=60)
+
+    # Get all user IDs in the same clan
+    user_ids = db.query(User.id).filter(
+        User.clan_id == current_user.clan_id
     ).all()
 
-    db.delete(count)
+    # Extract IDs from the result tuples
+    user_ids = [user_id[0] for user_id in user_ids]
+
+    # Delete notifications older than 2 months for these users
+    count = db.query(Notification).filter(
+        Notification.user_id.in_(user_ids),
+        Notification.created_at < two_months_ago  # Adjust field name if different
+    ).delete(synchronize_session=False)
+
     db.commit()
-    db.refresh(count)
 
     # logger.info(
-    #     f"Deleted {count} notifications for user {current_user.id}")
+    #     f"Deleted {count} notifications older than 2 months for clan {current_user.clan_id}")
 
     return {
         "message": f"تم حذف {count} إشعار",
         "count": count,
         "success": True
     }
-
 
 # # Admin-only routes
 # @router.post("/create-general", response_model=NotificationOut, dependencies=[Depends(clan_admin_required)])
