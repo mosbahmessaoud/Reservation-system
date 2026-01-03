@@ -640,29 +640,23 @@ def bulk_delete_notifications(
 
     - **notification_ids**: List of notification IDs to delete
     """
-    try:
 
-        count = db.query(Notification).filter(
-            Notification.user_id == current_user.id
-        ).delete(synchronize_session=False)
+    count = db.query(Notification).filter(
+        Notification.user_id == current_user.id
+    ).all()
 
-        db.commit()
+    db.delete(count)
+    db.commit()
+    db.refresh(count)
 
-        logger.info(
-            f"Deleted {count} notifications for user {current_user.id}")
+    # logger.info(
+    #     f"Deleted {count} notifications for user {current_user.id}")
 
-        return {
-            "message": f"تم حذف {count} إشعار",
-            "count": count,
-            "success": True
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error bulk deleting notifications: {e}")
-        db.rollback()
-        raise HTTPException(500, f"خطأ في حذف الإشعارات: {str(e)}")
+    return {
+        "message": f"تم حذف {count} إشعار",
+        "count": count,
+        "success": True
+    }
 
 
 # # Admin-only routes
