@@ -632,7 +632,6 @@ def delete_notification(
 
 @router.delete("/bulk-delete", response_model=BulkNotificationResponse)
 def bulk_delete_notifications(
-    notification_ids: List[int],
     db: Session = Depends(get_db),
     current_user: User = Depends(authenticated)
 ):
@@ -642,11 +641,8 @@ def bulk_delete_notifications(
     - **notification_ids**: List of notification IDs to delete
     """
     try:
-        if not notification_ids:
-            raise HTTPException(400, "قائمة معرفات الإشعارات فارغة")
 
         count = db.query(Notification).filter(
-            Notification.id.in_(notification_ids),
             Notification.user_id == current_user.id
         ).delete(synchronize_session=False)
 

@@ -682,6 +682,7 @@ def get_my_all_reservations(
             "birth_address": reservation.birth_address,
             "home_address": reservation.home_address,
             "phone_number": reservation.phone_number,
+            "payment_valid": reservation.payment_status,
 
             # Guardian information
             "guardian_name": reservation.guardian_name,
@@ -821,6 +822,7 @@ def get_my_validated_reservation(
         "birth_address": reservation.birth_address,
         "home_address": reservation.home_address,
         "phone_number": reservation.phone_number,
+        "payment_valid": reservation.payment_status,
 
         # Guardian information
         "guardian_name": reservation.guardian_name,
@@ -885,6 +887,7 @@ def get_my_cancelled_reservations(
             "birth_address": reservation.birth_address,
             "home_address": reservation.home_address,
             "phone_number": reservation.phone_number,
+            "payment_valid": reservation.payment_status,
 
             # Guardian information
             "guardian_name": reservation.guardian_name,
@@ -988,6 +991,7 @@ def get_all_reservations(
             "birth_address": reservation.birth_address,
             "home_address": reservation.home_address,
             "phone_number": reservation.phone_number,
+            "payment_valid": reservation.payment_status,
 
             # Guardian information
             "guardian_name": reservation.guardian_name,

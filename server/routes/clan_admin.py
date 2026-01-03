@@ -510,18 +510,20 @@ def update_payment(
     current: User = Depends(clan_admin_required),
     db: Session = Depends(get_db)
 ):
-
     clansetting = db.query(ClanSettings).filter(
         ClanSettings.clan_id == current.clan_id,
     ).first()
 
     if not clansetting:
-        raise HTTPException(status_code=401)
+        raise HTTPException(
+            status_code=404, detail="إعدادات العشيرة غير موجودة")
 
     clansetting.payment_should_pay = data.payment_should_pay
 
     db.commit()
     db.refresh(clansetting)
+
+    return {"message": "تم تحديث المبلغ بنجاح"}
 
 # geting the requed payment of a clan
 
