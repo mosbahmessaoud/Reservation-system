@@ -7,6 +7,7 @@ import logging
 from re import U
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
+from numpy import roll
 from sqlalchemy.orm import Session
 from datetime import datetime
 
@@ -631,7 +632,7 @@ def delete_notification(
         raise HTTPException(500, f"خطأ في حذف الإشعار: {str(e)}")
 
 
-@router.delete("/bulk-delete", response_model=BulkNotificationResponse)
+@router.delete("/bulk-delete/2month", response_model=BulkNotificationResponse)
 def bulk_delete_notifications(
     db: Session = Depends(get_db),
     current_user: User = Depends(authenticated)
@@ -655,6 +656,43 @@ def bulk_delete_notifications(
     count = db.query(Notification).filter(
         Notification.user_id.in_(user_ids),
         Notification.created_at < two_months_ago  # Adjust field name if different
+    ).delete(synchronize_session=False)
+
+    db.commit()
+
+    # logger.info(
+    #     f"Deleted {count} notifications older than 2 months for clan {current_user.clan_id}")
+
+    return {
+        "message": f"تم حذف {count} إشعار",
+        "count": count,
+        "success": True
+    }
+
+
+@router.delete("/bulk-delete/clan_admin", response_model=BulkNotificationResponse)
+def bulk_delete_notifications(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(authenticated)
+):
+    """
+    Delete notifications 
+    """
+
+    # Calculate the date 2 months ago
+
+    # Get all user IDs in the same clan
+    user_ids = db.query(User.id).filter(
+        User.clan_id == current_user.clan_id,
+        User.role == UserRole.clan_admin
+    ).all()
+
+    # Extract IDs from the result tuples
+    user_ids = [user_id[0] for user_id in user_ids]
+
+    # Delete notifications older than 2 months for these users
+    count = db.query(Notification).filter(
+        Notification.user_id.in_(user_ids),
     ).delete(synchronize_session=False)
 
     db.commit()
