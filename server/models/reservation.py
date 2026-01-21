@@ -15,6 +15,7 @@ class ReservationStatus(str, enum.Enum):
     validated = "validated"
     cancelled = "cancelled"
 
+
 class PaymentStatus(str, enum.Enum):
     """Payment status for reservations"""
     paid = "paid"
@@ -42,14 +43,14 @@ class Reservation(Base):
                     default=ReservationStatus.pending_validation, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     # payment_valid = Column(Boolean, default=False, nullable=True)  # added new
-        # UPDATED: Changed from payment_valid (Boolean) to payment_status (Enum)
+    # UPDATED: Changed from payment_valid (Boolean) to payment_status (Enum)
     payment_status = Column(
         Enum(PaymentStatus),
         default=PaymentStatus.not_paid,
         nullable=False
     )
     payment = Column(Numeric(15, 2), nullable=True, default=0.00)  # new added
-   
+
     # Selections (nullable until finalized)
     hall_id = Column(Integer, ForeignKey("halls_table.id"), nullable=True)
     haia_committee_id = Column(Integer, ForeignKey(
@@ -73,6 +74,8 @@ class Reservation(Base):
     guardian_home_address = Column(String, nullable=True)
     guardian_birth_address = Column(String, nullable=True)
     guardian_birth_date = Column(Date, nullable=True)
+    custom_madaeh_committee_name = Column(String, nullable=True)
+    tilawa_type = Column(String, nullable=True)
 
     # Relationships
     groom = relationship("User", back_populates="reservations", lazy="select")

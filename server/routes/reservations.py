@@ -407,7 +407,11 @@ def create_reservation(resv_in: ReservationCreate, db: Session = Depends(get_db)
             hall_id=hall.id,
             haia_committee_id=resv_in.haia_committee_id,
             madaeh_committee_id=resv_in.madaeh_committee_id,
+            custom_madaeh_committee_name=resv_in.custom_madaeh_committee_name,
+            tilawa_type=resv_in.tilawa_type,
             county_id=clan.county_id,
+
+
 
             # Personal information
             first_name=groom.first_name,
@@ -685,6 +689,8 @@ def get_my_all_reservations(
             "haia_committee_id": reservation.haia_committee_id,
             "haia_committee_name": reservation.haia_committee.name if reservation.haia_committee else None,
             "madaeh_committee_id": reservation.madaeh_committee_id,
+            "custom_madaeh_committee_name": reservation.custom_madaeh_committee_name,
+            'tilawa_type': reservation.tilawa_type,
             "madaeh_committee_name": reservation.madaeh_committee.name if reservation.madaeh_committee else None,
 
             # Personal information
@@ -759,6 +765,8 @@ def get_my_pending_reservation(
         "haia_committee_id": reservation.haia_committee_id,
         "haia_committee_name": reservation.haia_committee.name if reservation.haia_committee else None,
         "madaeh_committee_id": reservation.madaeh_committee_id,
+        "custom_madaeh_committee_name": reservation.custom_madaeh_committee_name,
+        'tilawa_type': reservation.tilawa_type,
         "madaeh_committee_name": reservation.madaeh_committee.name if reservation.madaeh_committee else None,
 
         # Personal information
@@ -825,6 +833,8 @@ def get_my_validated_reservation(
         "haia_committee_id": reservation.haia_committee_id,
         "haia_committee_name": reservation.haia_committee.name if reservation.haia_committee else None,
         "madaeh_committee_id": reservation.madaeh_committee_id,
+        "custom_madaeh_committee_name": reservation.custom_madaeh_committee_name,
+        'tilawa_type': reservation.tilawa_type,
         "madaeh_committee_name": reservation.madaeh_committee.name if reservation.madaeh_committee else None,
 
         # Personal information
@@ -890,6 +900,8 @@ def get_my_cancelled_reservations(
             "haia_committee_id": reservation.haia_committee_id,
             "haia_committee_name": reservation.haia_committee.name if reservation.haia_committee else None,
             "madaeh_committee_id": reservation.madaeh_committee_id,
+            "custom_madaeh_committee_name": reservation.custom_madaeh_committee_name,
+            'tilawa_type': reservation.tilawa_type,
             "madaeh_committee_name": reservation.madaeh_committee.name if reservation.madaeh_committee else None,
 
             # Personal information
@@ -989,6 +1001,8 @@ def get_all_reservations(
             "haia_committee_id": reservation.haia_committee_id,
             "haia_committee_name": reservation.haia_committee.name if reservation.haia_committee else None,
             "madaeh_committee_id": reservation.madaeh_committee_id,
+            "custom_madaeh_committee_name": reservation.custom_madaeh_committee_name,
+            'tilawa_type': reservation.tilawa_type,
             "madaeh_committee_name": reservation.madaeh_committee.name if reservation.madaeh_committee else None,
 
             # Groom information
@@ -1070,6 +1084,8 @@ def get_all_reservations_for_clan_admin(
             "haia_committee_id": reservation.haia_committee_id,
             "haia_committee_name": reservation.haia_committee.name if reservation.haia_committee else None,
             "madaeh_committee_id": reservation.madaeh_committee_id,
+            "custom_madaeh_committee_name": reservation.custom_madaeh_committee_name,
+            'tilawa_type': reservation.tilawa_type,
             "madaeh_committee_name": reservation.madaeh_committee.name if reservation.madaeh_committee else None,
 
             # Personal information

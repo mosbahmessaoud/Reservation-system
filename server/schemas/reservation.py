@@ -29,6 +29,8 @@ class ReservationBase(BaseModel):
     hall_id: Optional[int] = None
     haia_committee_id: Optional[int] = None
     madaeh_committee_id: Optional[int] = None
+    custom_madaeh_committee_name: Optional[str] = None
+    tilawa_type: Optional[str] = None
     pdf_url: Optional[str] = None
 
 
@@ -68,6 +70,8 @@ class ReservationOut(BaseModel):
     # Committee assignments
     haia_committee_id: Optional[int] = None
     madaeh_committee_id: Optional[int] = None
+    custom_madaeh_committee_name: Optional[str] = None
+    tilawa_type: Optional[str] = None
 
     # Groom personal information
     first_name: Optional[str] = None
