@@ -3,6 +3,8 @@
 Reservation routes for grooms and clan admins.
 """
 import logging
+from server.models.reservation_clan_admin import ReservationSpecial
+from server.schemas.reservations_special import ReservationSpecialStatus
 import server.utils.notification_service
 import subprocess
 from typing import Dict, List, Optional
@@ -554,14 +556,27 @@ def validate_reservation(groom_id: int, db: Session = Depends(get_db), current: 
 
     resv = db.query(Reservation).filter(
         Reservation.county_id == current.county_id,
-        Reservation.groom_id == groom_id,
         Reservation.clan_id == current.clan_id,
+        Reservation.groom_id == groom_id,
         Reservation.status == ReservationStatus.pending_validation
 
     ).first()
     if not resv:
         raise HTTPException(
             status_code=404, detail="الحجز غير موجود")
+
+    special_res = db.query(ReservationSpecial).filter(
+        ReservationSpecial.county_id == current.county_id,
+        ReservationSpecial.clan_id == current.clan_id,
+        ReservationSpecial.status == ReservationSpecialStatus.validated,
+        or_(ReservationSpecial.date == resv.date1,
+            ReservationSpecial.date == resv.date2)
+    ).first()
+
+    if special_res:
+        raise HTTPException(
+            status_code=400, detail="  لا يمكن المصادقة على هذا الحجز هاذ اليوم محجوز من العشيرة"
+        )
 
     resv.status = ReservationStatus.validated
     db.commit()
