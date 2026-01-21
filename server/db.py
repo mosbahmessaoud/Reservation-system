@@ -21,11 +21,7 @@ if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
 if not DATABASE_URL:
     if os.getenv("ENVIRONMENT") == "production":
         raise ValueError("DATABASE_URL not set in production!")
-    DATABASE_URL = os.getenv(
-        "LOCAL_DATABASE_URL",
-        "postgresql+psycopg2://postgres:032023@localhost:5432/wedding_db"
-    )
-    print(f"⚠️ Using local database: {DATABASE_URL[:40]}...")
+    DATABASE_URL = os.getenv("LOCAL_DATABASE_URL")
 
 # Engine configuration with better timeout settings
 engine_kwargs = {

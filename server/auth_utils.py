@@ -18,18 +18,13 @@ import hashlib
 from .db import SessionLocal
 from .models.user import User, UserRole
 
-# ✅ Load environment variables
 load_dotenv()
 
-# ✅ Get SECRET_KEY from environment (CRITICAL for production!)
-SECRET_KEY = os.getenv("SECRET_KEY", "supersecretkey2")
+SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(
-    os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60 * 24))  # 24 hours default
+    os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60 * 24))
 
-# ✅ Warn if using default secret key
-if SECRET_KEY == "supersecretkey2":
-    print("⚠️ WARNING: Using default SECRET_KEY! Please set SECRET_KEY in environment variables!")
 
 pwd_context = CryptContext(
     schemes=["bcrypt"],
@@ -98,7 +93,6 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
 
-    # ✅ Add issued at timestamp
     to_encode.update({"iat": datetime.utcnow()})
 
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
@@ -145,7 +139,7 @@ def get_current_user(
     Raises:
         HTTPException: If token is invalid or user not found
     """
-    # ✅ Only log in development
+    # Only log in development
     is_production = os.getenv("ENVIRONMENT") == "production"
 
     if not is_production:
@@ -158,11 +152,10 @@ def get_current_user(
     )
 
     try:
-        # Decode JWT token
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
 
         if not is_production:
-            print(f"✅ Decoded payload: {payload}")
+            print(f" Decoded payload: {payload}")
 
         # Extract user_id from 'sub' claim
         user_id: str = payload.get("sub")
@@ -228,7 +221,6 @@ def require_role(required_roles: List[UserRole]):
     def _require_role(current_user: User = Depends(get_current_user)) -> User:
         # Check if user has required role
         if current_user.role not in required_roles:
-            # ✅ FIXED: Properly format the role values for error message
             role_names = ', '.join([r.value for r in required_roles])
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -290,7 +282,6 @@ def get_current_active_user(current_user: User = Depends(get_current_user)) -> U
     return current_user
 
 
-# ✅ Optional: Token refresh utility
 def create_refresh_token(data: dict) -> str:
     """
     Create refresh token with longer expiration

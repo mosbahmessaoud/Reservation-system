@@ -69,7 +69,6 @@ def get_database_url():
     if not db_url:
         raise ValueError("No database URL configured!")
 
-    # Railway PostgreSQL uses postgres:// but SQLAlchemy needs postgresql://
     if db_url.startswith("postgres://"):
         db_url = db_url.replace("postgres://", "postgresql://", 1)
 
@@ -162,7 +161,7 @@ def ensure_super_admin_exists():
     """
     db = SessionLocal()
     try:
-        SUPER_ADMIN_PHONE = os.getenv("SUPER_ADMIN_PHONE", "0658890501")
+        SUPER_ADMIN_PHONE = os.getenv("SUPER_ADMIN_PHONE")
         SUPER_ADMIN_PASSWORD = os.getenv("SUPER_ADMIN_PASSWORD")
 
         if not SUPER_ADMIN_PASSWORD:
@@ -270,7 +269,7 @@ def seed_initial_data():
         db.commit()
 
         super_admin = User(
-            phone_number=os.getenv("SUPER_ADMIN_PHONE", "0658890501"),
+            phone_number=os.getenv("SUPER_ADMIN_PHONE"),
             password_hash=get_password_hash(
                 os.getenv("SUPER_ADMIN_PASSWORD")),
             role=UserRole.super_admin,
@@ -290,61 +289,6 @@ def seed_initial_data():
         db.rollback()
     finally:
         db.close()
-
-
-# @asynccontextmanager
-# async def lifespan(app: FastAPI):
-#     # Startup
-#     print("=" * 60)
-#     print(f"🚀 Starting in {ENVIRONMENT} mode...")
-#     get_database_url()  # This will print the database info
-#     print("=" * 60)
-
-#     try:
-#         # Initialize volume storage first
-#         print("\n📦 Initializing storage...")
-#         volume_ready = initialize_volume_storage()
-#         if not volume_ready and IS_PRODUCTION:
-#             print("⚠️ WARNING: Running in production without persistent storage!")
-
-#         # Run Alembic migrations FIRST - before any database queries
-#         print("\n🔄 Running database migrations...")
-#         migration_success = run_alembic_migrations()
-
-#         if not migration_success:
-#             if IS_PRODUCTION:
-#                 print("❌ CRITICAL: Migrations failed in production!")
-#                 raise Exception(
-#                     "Database migration failed - cannot start application")
-#             else:
-#                 # Fallback to create_all only in development
-#                 print("⚠️ Migrations failed, falling back to create_all...")
-#                 Base.metadata.create_all(bind=engine)
-#                 print("✅ Database tables created/verified")
-
-#         # ONLY AFTER migrations are complete, check/create super admin
-#         print("\n👤 Checking super admin...")
-#         ensure_super_admin_exists()
-
-#         print("\n" + "=" * 60)
-#         print("✅ Application ready!")
-#         print(f"🌍 Environment: {ENVIRONMENT}")
-#         print(f"📍 Server: http://127.0.0.1:8000")
-#         print(f"📚 Docs: http://127.0.0.1:8000/docs" if not IS_PRODUCTION else "📚 Docs: Disabled in production")
-#         print("=" * 60)
-
-#     except Exception as e:
-#         print(f"\n❌ Startup error: {e}")
-#         import traceback
-#         traceback.print_exc()
-#         if IS_PRODUCTION:
-#             # In production, fail fast if startup fails
-#             raise
-
-#     yield
-
-#     # Shutdown
-#     print("\n👋 Shutting down...")
 
 
 @asynccontextmanager
@@ -422,19 +366,19 @@ async def lifespan(app: FastAPI):
         print("=" * 60)
 
     except Exception as e:
-        print(f"\n❌ Startup error: {e}")
+        print(f"\n Startup error: {e}")
         import traceback
         traceback.print_exc()
         if IS_PRODUCTION and not skip_migrations:
             # In production, fail fast if startup fails (unless migrations skipped)
             raise
         elif IS_PRODUCTION:
-            print("⚠️ Continuing despite error due to SKIP_MIGRATIONS flag...")
+            print("Continuing despite error due to SKIP_MIGRATIONS flag...")
 
     yield
 
     # Shutdown
-    print("\n👋 Shutting down...")
+    print("\n Shutting down...")
 
 
 app = FastAPI(
