@@ -178,6 +178,49 @@ def has_valid_reservation(db: Session, groom_id: int) -> bool:
     return len(reservations) > 0
 
 
+class PhoneGroom(BaseModel):
+    phone_number: str
+# check for the phone groom existing or not router
+
+
+@router.post("/check_groom_phone")
+def check_groom_phone_existing(
+    data: PhoneGroom,
+    db: Session = Depends(get_db),
+):
+
+    existing_user = db.query(User).filter(
+        User.phone_number == data.phone_number,
+        User.role == UserRole.groom
+    ).first()
+
+    if existing_user:
+        return {"exists": True, "message": "رقم هاتف العريس موجود بالفعل."}
+    else:
+        return {"exists": False, "message": "رقم هاتف العريس غير موجود."}
+
+
+class PhoneGuardian(BaseModel):
+    phone_number: str
+# check for the phone guardian existing or not router
+
+
+@router.post("/check_guardian_phone")
+def check_guardian_phone_existing(
+    data: PhoneGuardian,
+    db: Session = Depends(get_db),
+):
+
+    existing_user = db.query(User).filter(
+        User.guardian_phone == data.phone_number
+    ).first()
+
+    if existing_user:
+        return {"exists": True, "message": "رقم هاتف الولي موجود بالفعل."}
+    else:
+        return {"exists": False, "message": "رقم هاتف الولي غير موجود."}
+
+
 @router.post("/register/groom", response_model=RegisterResponse)
 def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
     if user_in.role != UserRole.groom:
