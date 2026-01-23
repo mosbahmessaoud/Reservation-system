@@ -25,6 +25,9 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     phone_number = Column(String, unique=True, index=True, nullable=False)
+    guardian_phone = Column(String, unique=True, index=True, nullable=True)
+
+    # phone_number_groom = Column(String, nullable=True)
     password_hash = Column(String, nullable=False)
 
     access_pages_password_hash = Column(
@@ -64,7 +67,7 @@ class User(Base):
 
     # Groom-specific fields
     guardian_name = Column(String, nullable=True)
-    guardian_phone = Column(String, nullable=True)
+    # guardian_phone = Column(String, nullable=True)
     guardian_relation = Column(String, nullable=True)
     # Personal info
     guardian_birth_date = Column(Date)
@@ -75,6 +78,8 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     status = Column(Enum(UserStatus),
                     default=UserStatus.active, nullable=False)
+
+    sms_to_groom_phone = Column(Boolean, default=False, nullable=False)
 
     # Relationships
     reservations = relationship(

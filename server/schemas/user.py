@@ -39,6 +39,7 @@ class UpdateGroomRequest(BaseModel):
     guardian_relation: Optional[str] = None
     status: Optional[UserStatus] = None
 
+
 class UserBase(BaseModel):
     phone_number: str
     first_name: str
@@ -63,6 +64,8 @@ class UserCreate(UserBase):
     guardian_phone: Optional[str] = None
     guardian_relation: Optional[str] = None
     status: Optional[UserStatus] = UserStatus.active  # Set default value
+    # New field to indicate SMS recipient
+    sms_to_groom_phone: Optional[bool] = False
 
 
 class UserUpdate(BaseModel):

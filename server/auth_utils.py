@@ -100,7 +100,13 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 def get_user_by_phone(db: Session, phone_number: str) -> Optional[User]:
     """Get user by phone number"""
-    return db.query(User).filter(User.phone_number == phone_number).first()
+    groom_phone = db.query(User).filter(
+        User.phone_number == phone_number).first()
+
+    if not groom_phone:
+        return db.query(User).filter(User.guardian_phone == phone_number).first()
+
+    return groom_phone
 
 
 def authenticate_user(db: Session, phone_number: str, password: str) -> Optional[User]:

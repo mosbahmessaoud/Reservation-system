@@ -1,0 +1,54 @@
+PS D:\DEV\shoping_app_project\backend\server> & D:/DEV/shoping_app_project/backend/server/venv/Scripts/Activate.ps1
+(venv) PS D:\DEV\shoping_app_project\backend\server> # 1. Check current state
+(venv) PS D:\DEV\shoping_app_project\backend\server> alembic current
+☁️ Using production database: localhost:5432/Ecom_app
+🔴 Alembic using PRODUCTION database
+📊 Alembic Database: postgresql://postgres:****@localhost:5432/Ecom_app
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+f1bf3b2ab481
+(venv) PS D:\DEV\shoping_app_project\backend\server> # Output: f1bf3b2ab481
+(venv) PS D:\DEV\shoping_app_project\backend\server> 
+(venv) PS D:\DEV\shoping_app_project\backend\server> # 2. Check what migrations exist
+(venv) PS D:\DEV\shoping_app_project\backend\server> alembic history
+
+(venv) PS D:\DEV\shoping_app_project\backend\server> # Shows: f1bf3b2ab481 -> 8e58004247ae (head)
+(venv) PS D:\DEV\shoping_app_project\backend\server> 
+(venv) PS D:\DEV\shoping_app_project\backend\server> # 3. Apply pending migration
+(venv) PS D:\DEV\shoping_app_project\backend\server> alembic upgrade head
+
+(venv) PS D:\DEV\shoping_app_project\backend\server> 
+(venv) PS D:\DEV\shoping_app_project\backend\server> # 4. Verify you're up to date
+(venv) PS D:\DEV\shoping_app_project\backend\server> alembic current
+
+(venv) PS D:\DEV\shoping_app_project\backend\server> # Should output: 8e58004247ae (head)
+(venv) PS D:\DEV\shoping_app_project\backend\server> alembic revision --autogenerate -m "add is_sold column to products"
+☁️ Using production database: localhost:5432/Ecom_app
+🔴 Alembic using PRODUCTION database
+📊 Alembic Database: postgresql://postgres:****@localhost:5432/Ecom_app
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.ddl.postgresql] Detected sequence named 'bill_items_id_seq' as owned by integer column 'bill_items(id)', assuming SERIAL and omitting
+INFO  [alembic.ddl.postgresql] Detected sequence named 'payments_id_seq' as owned by integer column 'payments(id)', assuming SERIAL and omitting
+INFO  [alembic.ddl.postgresql] Detected sequence named 'otps_id_seq' as owned by integer column 'otps(id)', assuming SERIAL and omitting
+INFO  [alembic.ddl.postgresql] Detected sequence named 'stock_alerts_id_seq' as owned by integer column 'stock_alerts(id)', assuming SERIAL and omitting
+INFO  [alembic.ddl.postgresql] Detected sequence named 'notifications_id_seq' as owned by integer column 'notifications(id)', assuming SERIAL and omitting
+INFO  [alembic.autogenerate.compare] Detected added column 'products.is_sold'
+Generating D:\DEV\shoping_app_project\backend\server\alembic\versions\667ca2e269f4_add_is_sold_column_to_products.py ...  done
+(venv) PS D:\DEV\shoping_app_project\backend\server> git add .
+warning: in the working copy of 'alembic/versions/667ca2e269f4_add_is_sold_column_to_products.py', LF will be replaced by CRLF the next time Git touches it
+(venv) PS D:\DEV\shoping_app_project\backend\server> git commit -m "add new migration "
+[main d0b2bbb] add new migration
+ 2 files changed, 31 insertions(+), 1 deletion(-)
+ create mode 100644 alembic/versions/667ca2e269f4_add_is_sold_column_to_products.py
+(venv) PS D:\DEV\shoping_app_project\backend\server> git push
+Enumerating objects: 12, done.
+Counting objects: 100% (12/12), done.
+Delta compression using up to 8 threads
+Compressing objects: 100% (7/7), done.
+Writing objects: 100% (7/7), 1.02 KiB | 522.00 KiB/s, done.
+Total 7 (delta 4), reused 0 (delta 0), pack-reused 0 (from 0)
+remote: Resolving deltas: 100% (4/4), completed with 4 local objects.
+To https://github.com/mosbahmessaoud/shoping_app_system.git
+   6fee8b9..d0b2bbb  main -> main
+(venv) PS D:\DEV\shoping_app_project\backend\server> 

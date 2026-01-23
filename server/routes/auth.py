@@ -1,6 +1,7 @@
 
 # server\routes\auth.py
 from server.auth_utils import verify_access_password
+from server.models.reservation import Reservation, ReservationStatus
 from server.schemas.user import AccessPasswordVerify
 from tokenize import String
 from fastapi import APIRouter, Body, Depends, HTTPException, logger, status
@@ -51,6 +52,7 @@ def delet_user(phone__number: str, db: Session = Depends(get_db)):
     user = db.query(User).filter(
         User.phone_number == phone__number
     ).first()
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -121,8 +123,6 @@ def login(
     db: Session = Depends(get_db),
 ):
 
-    print(f"🔍 Login attempt for: {request.phone_number}")
-    print(f"🔍 Password length: {len(request.password)} chars")
     user = auth_utils.authenticate_user(
         db, request.phone_number, request.password
     )
@@ -167,6 +167,17 @@ def login(
     }
 
 
+def has_valid_reservation(db: Session, groom_id: int) -> bool:
+    """Check if the groom has any valid reservations."""
+    now = datetime.utcnow()
+    reservations = db.query(Reservation).filter(
+        Reservation.groom_id == groom_id,
+        Reservation.status == ReservationStatus.validated,
+        Reservation.date1 >= now,
+    ).all()
+    return len(reservations) > 0
+
+
 @router.post("/register/groom", response_model=RegisterResponse)
 def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
     if user_in.role != UserRole.groom:
@@ -181,10 +192,43 @@ def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
         if existing_user.phone_verified:
             # Phone is verified, don't allow registration
             raise HTTPException(
-                status_code=400, detail="رقم الهاتف موجود بالفعل ومؤكد")
+                status_code=400, detail="رقم هاتف العريس موجود بالفعل ومؤكد")
+        elif has_valid_reservation(db, existing_user.id):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"رقم هاتف العريس {user_in.phone_number} "
+                    "مستخدم بالفعل، ويوجد حساب مرتبط به لكنه غير مؤكد.\n"
+                    "يرجى إعادة تعيين كلمة المرور عبر خاصية «نسيت كلمة المرور»."
+                )
+            )
+
         else:
             # Phone is not verified, delete the old unverified user
             db.delete(existing_user)
+            db.commit()
+
+    existing_user_by_guardian_phone = db.query(User).filter(
+        User.guardian_phone == user_in.guardian_phone).first()
+
+    if existing_user_by_guardian_phone:
+        if existing_user_by_guardian_phone.phone_verified:
+            # Phone is verified, don't allow registration
+            raise HTTPException(
+                status_code=400, detail="رقم هاتف الولي موجود بالفعل ومؤكد")
+        elif has_valid_reservation(db, existing_user_by_guardian_phone.id):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"رقم هاتف الولي {user_in.guardian_phone} "
+                    "مستخدم بالفعل، ويوجد حساب مرتبط به لكنه غير مؤكد.\n"
+                    "يرجى إعادة تعيين كلمة المرور عبر خاصية «نسيت كلمة المرور»."
+                )
+            )
+
+        else:
+            # Phone is not verified, delete the old unverified user
+            db.delete(existing_user_by_guardian_phone)
             db.commit()
 
     clan = db.query(Clan).filter(Clan.id == user_in.clan_id).first()
@@ -211,6 +255,7 @@ def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
     # guardian_phone = validate_algerian_number(user_in.guardian_phone)
     validate_number_phone(user_in.phone_number)
     validate_number_phone_of_guardian(user_in.guardian_phone)
+
     user = User(
         phone_number=user_in.phone_number,
         password_hash=hashed_password,
@@ -232,7 +277,6 @@ def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
         guardian_birth_date=user_in.guardian_birth_date,
         guardian_relation=user_in.guardian_relation,
         otp_code=otp_code,
-
         otp_expiration=datetime.utcnow() + timedelta(hours=2),
         # New fields from updated model
         created_at=datetime.utcnow(),
@@ -244,7 +288,10 @@ def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
     db.refresh(user)
     # Send OTP
     try:
-        send_otp_to_user_by_twilo(user.phone_number, otp_code)
+        if user_in.sms_to_groom_phone == True:
+            send_otp_to_user_by_twilo(user.phone_number, otp_code)
+        else:
+            send_otp_to_user_by_twilo(user.guardian_phone, otp_code)
     except ValueError as e:
         # If SMS fails, still keep user but notify
         logger.error(f"SMS failed for {user.phone_number}: {e}")
@@ -326,10 +373,16 @@ def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/verify-phone")
 def verify_phone(phone_number: str = Body(...), code: str = Body(...), db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.phone_number == phone_number).first()
+    user = db.query(User).filter(
+        User.phone_number == phone_number).first()
 
     if not user:
-        raise HTTPException(status_code=404, detail="المستخدم غير موجود")
+        user_by_guardian_phone = db.query(User).filter(
+            User.guardian_phone == phone_number).first()
+        if not user_by_guardian_phone:
+            raise HTTPException(status_code=404, detail="المستخدم غير موجود")
+
+        user = user_by_guardian_phone
 
     if user.phone_verified:
         # return {"message": "الهاتف مؤكد بالفعل."}
@@ -362,7 +415,12 @@ def resend_otp(payload: PhoneRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.phone_number == phone_number).first()
 
     if not user:
-        raise HTTPException(status_code=404, detail="المستخدم غير موجود")
+        user_by_guardian_phone = db.query(User).filter(
+            User.guardian_phone == phone_number).first()
+        if not user_by_guardian_phone:
+            raise HTTPException(status_code=404, detail="المستخدم غير موجود")
+
+        user = user_by_guardian_phone
 
     # if user.phone_verified:
     #     return {"message": "الهاتف مؤكد بالفعل."}
@@ -375,7 +433,7 @@ def resend_otp(payload: PhoneRequest, db: Session = Depends(get_db)):
 
     # Send new OTP
     try:
-        send_otp_to_user_by_twilo(user.phone_number, new_code)
+        send_otp_to_user_by_twilo(phone_number, new_code)
         return {"message": "تم إرسال رمز تحقق جديد إلى هاتفك."}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -419,7 +477,12 @@ def get_otp_code(phone_number: str, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.phone_number == phone_number).first()
 
     if not user:
-        raise HTTPException(status_code=404, detail="المستخدم غير موجود")
+        user_by_guardian_phone = db.query(User).filter(
+            User.guardian_phone == phone_number).first()
+        if not user_by_guardian_phone:
+            raise HTTPException(status_code=404, detail="المستخدم غير موجود")
+
+        user = user_by_guardian_phone
 
     if not user.otp_code:
         raise HTTPException(
@@ -438,7 +501,13 @@ def get_otp_code(phone_number: str, db: Session = Depends(get_db), current: User
     ).first()
 
     if not user:
-        raise HTTPException(status_code=404, detail="المستخدم غير موجود")
+        user_by_guardian_phone = db.query(User).filter(
+            User.clan_id == current.clan_id,
+            User.guardian_phone == phone_number).first()
+        if not user_by_guardian_phone:
+            raise HTTPException(status_code=404, detail="المستخدم غير موجود")
+
+        user = user_by_guardian_phone
 
     if not user.otp_code:
         raise HTTPException(
@@ -457,16 +526,18 @@ def request_password_reset(
     user = db.query(User).filter(User.phone_number == phone_number).first()
 
     if not user:
-        raise HTTPException(
-            status_code=404,
-            detail="المستخدم غير موجود"
-        )
+        user_by_guardian_phone = db.query(User).filter(
+            User.guardian_phone == phone_number).first()
+        if not user_by_guardian_phone:
+            raise HTTPException(status_code=404, detail="المستخدم غير موجود")
 
-    if not user.phone_verified:
-        raise HTTPException(
-            status_code=400,
-            detail="رقم الهاتف غير مؤكد"
-        )
+        user = user_by_guardian_phone
+
+    # if not user.phone_verified:
+    #     raise HTTPException(
+    #         status_code=400,
+    #         detail="رقم الهاتف غير مؤكد"
+    #     )
 
     # Generate new OTP for password reset
     new_code = generate_otp_code()
@@ -476,7 +547,7 @@ def request_password_reset(
 
     # Send new OTP
     try:
-        send_otp_to_user_by_twilo(user.phone_number, new_code)
+        send_otp_to_user_by_twilo(phone_number, new_code)
         return {"message": "تم إرسال رمز التحقق لإعادة تعيين كلمة المرور إلى هاتفك."}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -498,10 +569,12 @@ def reset_password(
     ).first()
 
     if not user:
-        raise HTTPException(
-            status_code=404,
-            detail="المستخدم غير موجود"
-        )
+        user_by_guardian_phone = db.query(User).filter(
+            User.guardian_phone == request.phone_number).first()
+        if not user_by_guardian_phone:
+            raise HTTPException(status_code=404, detail="المستخدم غير موجود")
+
+    user = user_by_guardian_phone
 
     if not user.phone_verified:
         raise HTTPException(
