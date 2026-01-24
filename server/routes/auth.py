@@ -194,8 +194,8 @@ def check_groom_phone_existing(
         User.role == UserRole.groom
     ).first()
 
-    if existing_user:
-        return {"exists": True, "message": "رقم هاتف العريس موجود بالفعل."}
+    if existing_user and has_valid_reservation(db, existing_user.id):
+        return {"exists": True, "message": ". رقم هاتف العريس موجود بالفعل ويوجد حجز مؤكد فيه\n اذا نسيت كلمة المرور، يرجى استخدام خاصية «نسيت كلمة المرور»  "}
     else:
         return {"exists": False, "message": "رقم هاتف العريس غير موجود."}
 
@@ -212,11 +212,14 @@ def check_guardian_phone_existing(
 ):
 
     existing_user = db.query(User).filter(
-        User.guardian_phone == data.phone_number
+
+        User.guardian_phone == data.phone_number,
+        User.role == UserRole.groom
+
     ).first()
 
-    if existing_user:
-        return {"exists": True, "message": "رقم هاتف الولي موجود بالفعل."}
+    if existing_user and has_valid_reservation(db, existing_user.id):
+        return {"exists": True, "message": "رقم هاتف الولي موجود بالفعل. ويوجد حجز مؤكد فيه\n اذا نسيت كلمة المرور، يرجى استخدام خاصية «نسيت كلمة المرور»."}
     else:
         return {"exists": False, "message": "رقم هاتف الولي غير موجود."}
 
@@ -241,7 +244,7 @@ def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
                 status_code=400,
                 detail=(
                     f"رقم هاتف العريس {user_in.phone_number} "
-                    "مستخدم بالفعل، ويوجد حساب مرتبط به لكنه غير مؤكد.\n"
+                    "موجود بالفعل، ويوجد حجز مؤكد فيه .\n"
                     "يرجى إعادة تعيين كلمة المرور عبر خاصية «نسيت كلمة المرور»."
                 )
             )
@@ -264,7 +267,7 @@ def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
                 status_code=400,
                 detail=(
                     f"رقم هاتف الولي {user_in.guardian_phone} "
-                    "مستخدم بالفعل، ويوجد حساب مرتبط به لكنه غير مؤكد.\n"
+                    "مستخدم بالفعل، ويوجد حجز مؤكد فيه.\n"
                     "يرجى إعادة تعيين كلمة المرور عبر خاصية «نسيت كلمة المرور»."
                 )
             )
