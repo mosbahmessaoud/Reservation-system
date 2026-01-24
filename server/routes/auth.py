@@ -1,6 +1,7 @@
 
 # server\routes\auth.py
 from server.auth_utils import verify_access_password
+from server.models.notification import Notification
 from server.models.reservation import Reservation, ReservationStatus
 from server.schemas.user import AccessPasswordVerify
 from tokenize import String
@@ -22,14 +23,6 @@ from server.utils.phone_utils import validate_algerian_number, validate_number_p
 from sqlalchemy import or_
 from .. import auth_utils
 from ..db import get_db
-
-
-import logging
-import traceback
-
-# At the top of your file
-logger = logging.getLogger(__name__)
-
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -232,350 +225,149 @@ def check_guardian_phone_existing(
         return {"exists": False, "message": "رقم هاتف الولي غير موجود."}
 
 
-# @router.post("/register/groom", response_model=RegisterResponse)
-# def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
-#     if user_in.role != UserRole.groom:
-#         raise HTTPException(
-#             status_code=400, detail="يمكن للعرسان فقط التسجيل بأنفسهم")
-
-#  # Check for existing user with this phone number
-#     existing_user = db.query(User).filter(
-#         or_(User.phone_number == user_in.phone_number,
-#             User.guardian_phone == user_in.phone_number),
-#     ).first()
-
-#     # if existing_user:
-#     # if existing_user.phone_verified:
-#     #     # Phone is verified, don't allow registration
-#     #     raise HTTPException(
-#     #         status_code=400, detail=("رقم هاتف العريس موجود بالفعل ومؤكد\n"
-#     #                                  "  اذا نسيت كلمة المرور يرجى إعادة تعيين كلمة المرور عبر خاصية «نسيت كلمة المرور». "
-#     #                                  ))
-#     if existing_user:
-#         if has_reservation(db, existing_user.id):
-#             raise HTTPException(
-#                 status_code=400,
-#                 detail=(
-#                     f"رقم هاتف العريس "
-#                     "موجود بالفعل، ويوجد حجز فيه .\n"
-#                     "يرجى إعادة تعيين كلمة المرور عبر خاصية «نسيت كلمة المرور»."
-#                 )
-#             )
-#         else:
-#             # Phone is not verified, delete the old unverified user
-#             db.delete(existing_user)
-#             db.commit()
-
-#     existing_user_by_guardian_phone = db.query(User).filter(
-#         sqlalchemy.or_(User.guardian_phone == user_in.guardian_phone,
-#                        User.phone_number == user_in.guardian_phone),
-
-#     ).first()
-
-#     # if existing_user_by_guardian_phone:
-#     # if existing_user_by_guardian_phone.phone_verified:
-#     #     # Phone is verified, don't allow registration
-#     #     raise HTTPException(
-#     #         status_code=400, detail=("رقم هاتف الولي موجود بالفعل ومؤكد\n"
-#     #                                  "  اذا نسيت كلمة المرور يرجى إعادة تعيين كلمة المرور عبر خاصية «نسيت كلمة المرور». "
-#     #                                  ))
-#     if existing_user_by_guardian_phone:
-#         if has_reservation(db, existing_user_by_guardian_phone.id):
-#             raise HTTPException(
-#                 status_code=400,
-#                 detail=(
-#                     f"رقم هاتف الولي  "
-#                     "مستخدم بالفعل، ويوجد حجز فيه.\n"
-#                     "يرجى إعادة تعيين كلمة المرور عبر خاصية «نسيت كلمة المرور»."
-#                 )
-#             )
-#         else:
-#             # Phone is not verified, delete the old unverified user
-#             db.delete(existing_user_by_guardian_phone)
-#             db.commit()
-
-#     clan = db.query(Clan).filter(Clan.id == user_in.clan_id).first()
-#     if not clan:
-#         raise HTTPException(
-#             status_code=404, detail=f"معرف العشيرة {user_in.clan_id} غير موجود.")
-
-#     county = db.query(County).filter(County.id == user_in.county_id).first()
-#     if not county:
-#         raise HTTPException(
-#             status_code=404, detail=f"معرف المقاطعة {user_in.county_id} غير موجود.")
-
-#     if clan.county_id != county.id:
-#         raise HTTPException(
-#             status_code=404, detail="العشيرة لا تنتمي إلى هذه المقاطعة.")
-
-#     access_pages_password = "تعشيرت"
-#     # access_pages_password = "تعشيرت"+user_in.phone_number
-#     hashed_access_pages_password = auth_utils.get_password_hash(
-#         access_pages_password)
-#     hashed_password = auth_utils.get_password_hash(user_in.password)
-#     otp_code = generate_otp_code()
-
-#     # guardian_phone = validate_algerian_number(user_in.guardian_phone)
-#     validate_number_phone(user_in.phone_number)
-#     validate_number_phone_of_guardian(user_in.guardian_phone)
-
-#     user = User(
-#         phone_number=user_in.phone_number,
-#         password_hash=hashed_password,
-#         access_pages_password_hash=hashed_access_pages_password,
-#         role=UserRole.groom,
-#         first_name=user_in.first_name,
-#         last_name=user_in.last_name,
-#         father_name=user_in.father_name,
-#         grandfather_name=user_in.grandfather_name,
-#         birth_date=user_in.birth_date,
-#         birth_address=user_in.birth_address,
-#         home_address=user_in.home_address,
-#         clan_id=user_in.clan_id,
-#         county_id=user_in.county_id,
-#         guardian_name=user_in.guardian_name,
-#         guardian_phone=user_in.guardian_phone,
-#         guardian_home_address=user_in.guardian_home_address,
-#         guardian_birth_address=user_in.guardian_birth_address,
-#         guardian_birth_date=user_in.guardian_birth_date,
-#         guardian_relation=user_in.guardian_relation,
-#         otp_code=otp_code,
-#         sms_to_groom_phone=user_in.sms_to_groom_phone,
-#         otp_expiration=datetime.utcnow() + timedelta(hours=4),
-#         created_at=datetime.utcnow(),
-#         status=UserStatus.active,
-#     )
-
-#     db.add(user)
-#     db.commit()
-#     db.refresh(user)
-#     # Send OTP
-#     try:
-#         if user_in.sms_to_groom_phone == True:
-#             send_otp_to_user_by_twilo(user.phone_number, otp_code)
-#         else:
-#             send_otp_to_user_by_twilo(user.guardian_phone, otp_code)
-#     except ValueError as e:
-#         # If SMS fails, still keep user but notify
-#         logger.error(f"SMS failed for {user.phone_number}: {e}")
-#         db.delete(user)
-#         db.commit()
-#         return {
-#             "message": " فشل إرسال الرمز",
-#             "error": str(e)
-#         }
-
-#     return {
-#         "message": "تم إنشاء الحساب. تحقق من هاتفك",
-#         "user": user
-#     }
-
-
 @router.post("/register/groom", response_model=RegisterResponse)
 def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
-    try:
-        logger.info(
-            f"🔵 Starting registration for phone: {user_in.phone_number}")
-
-        if user_in.role != UserRole.groom:
-            raise HTTPException(
-                status_code=400, detail="يمكن للعرسان فقط التسجيل بأنفسهم")
-
-        logger.info(
-            f"🔵 Checking existing user with phone: {user_in.phone_number}")
-        existing_user = db.query(User).filter(
-            or_(User.phone_number == user_in.phone_number,
-                User.guardian_phone == user_in.phone_number),
-        ).first()
-
-        if existing_user:
-            logger.info(f"🟡 Found existing user: {existing_user.id}")
-            if has_reservation(db, existing_user.id):
-                logger.warning(
-                    f"⚠️ User has reservation, blocking registration")
-                raise HTTPException(
-                    status_code=400,
-                    detail=(
-                        f"رقم هاتف العريس "
-                        "موجود بالفعل، ويوجد حجز فيه .\n"
-                        "يرجى إعادة تعيين كلمة المرور عبر خاصية «نسيت كلمة المرور»."
-                    )
-                )
-            else:
-                logger.info(
-                    f"🔵 Deleting old unverified user: {existing_user.id}")
-                db.delete(existing_user)
-                db.commit()
-
-        logger.info(f"🔵 Checking guardian phone: {user_in.guardian_phone}")
-        existing_user_by_guardian_phone = db.query(User).filter(
-            sqlalchemy.or_(User.guardian_phone == user_in.guardian_phone,
-                           User.phone_number == user_in.guardian_phone),
-        ).first()
-
-        if existing_user_by_guardian_phone:
-            logger.info(
-                f"🟡 Found existing guardian user: {existing_user_by_guardian_phone.id}")
-            if has_reservation(db, existing_user_by_guardian_phone.id):
-                logger.warning(
-                    f"⚠️ Guardian user has reservation, blocking registration")
-                raise HTTPException(
-                    status_code=400,
-                    detail=(
-                        f"رقم هاتف الولي  "
-                        "مستخدم بالفعل، ويوجد حجز فيه.\n"
-                        "يرجى إعادة تعيين كلمة المرور عبر خاصية «نسيت كلمة المرور»."
-                    )
-                )
-            else:
-                logger.info(
-                    f"🔵 Deleting old guardian user: {existing_user_by_guardian_phone.id}")
-                db.delete(existing_user_by_guardian_phone)
-                db.commit()
-
-        logger.info(f"🔵 Validating clan_id: {user_in.clan_id}")
-        clan = db.query(Clan).filter(Clan.id == user_in.clan_id).first()
-        if not clan:
-            logger.error(f"❌ Clan not found: {user_in.clan_id}")
-            raise HTTPException(
-                status_code=404, detail=f"معرف العشيرة {user_in.clan_id} غير موجود.")
-
-        logger.info(f"🔵 Validating county_id: {user_in.county_id}")
-        county = db.query(County).filter(
-            County.id == user_in.county_id).first()
-        if not county:
-            logger.error(f"❌ County not found: {user_in.county_id}")
-            raise HTTPException(
-                status_code=404, detail=f"معرف المقاطعة {user_in.county_id} غير موجود.")
-
-        if clan.county_id != county.id:
-            logger.error(
-                f"❌ Clan {clan.id} doesn't belong to county {county.id}")
-            raise HTTPException(
-                status_code=404, detail="العشيرة لا تنتمي إلى هذه المقاطعة.")
-
-        logger.info(f"🔵 Hashing passwords...")
-        access_pages_password = "تعشيرت"
-        hashed_access_pages_password = auth_utils.get_password_hash(
-            access_pages_password)
-        hashed_password = auth_utils.get_password_hash(user_in.password)
-        otp_code = generate_otp_code()
-
-        logger.info(f"🔵 Validating phone numbers...")
-        validate_number_phone(user_in.phone_number)
-        validate_number_phone_of_guardian(user_in.guardian_phone)
-
-        logger.info(f"🔵 Creating user object...")
-        user = User(
-            phone_number=user_in.phone_number,
-            password_hash=hashed_password,
-            access_pages_password_hash=hashed_access_pages_password,
-            role=UserRole.groom,
-            first_name=user_in.first_name,
-            last_name=user_in.last_name,
-            father_name=user_in.father_name,
-            grandfather_name=user_in.grandfather_name,
-            birth_date=user_in.birth_date,
-            birth_address=user_in.birth_address,
-            home_address=user_in.home_address,
-            clan_id=user_in.clan_id,
-            county_id=user_in.county_id,
-            guardian_name=user_in.guardian_name,
-            guardian_phone=user_in.guardian_phone,
-            guardian_home_address=user_in.guardian_home_address,
-            guardian_birth_address=user_in.guardian_birth_address,
-            guardian_birth_date=user_in.guardian_birth_date,
-            guardian_relation=user_in.guardian_relation,
-            otp_code=otp_code,
-            sms_to_groom_phone=user_in.sms_to_groom_phone,
-            otp_expiration=datetime.utcnow() + timedelta(hours=2),
-            created_at=datetime.utcnow(),
-            status=UserStatus.active,
-        )
-
-        logger.info(f"🔵 Adding user to database...")
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-        logger.info(f"✅ User created successfully with ID: {user.id}")
-
-        # Send OTP
-        try:
-            logger.info(
-                f"🔵 Sending OTP to {'groom' if user_in.sms_to_groom_phone else 'guardian'}...")
-            if user_in.sms_to_groom_phone == True:
-                send_otp_to_user_by_twilo(user.phone_number, otp_code)
-            else:
-                send_otp_to_user_by_twilo(user.guardian_phone, otp_code)
-            logger.info(f"✅ OTP sent successfully")
-        except ValueError as e:
-            logger.error(f"❌ SMS failed: {str(e)}")
-            db.delete(user)
-            db.commit()
-            return {
-                "message": " فشل إرسال الرمز",
-                "error": str(e)
-            }
-        except Exception as e:
-            logger.error(f"❌ Unexpected SMS error: {str(e)}")
-            logger.error(traceback.format_exc())
-            db.delete(user)
-            db.commit()
-            raise HTTPException(
-                status_code=500, detail=f"خطأ في إرسال الرمز: {str(e)}")
-
-        logger.info(f"🔵 Preparing response...")
-
-        # Explicitly create UserOut to check for validation issues
-        try:
-            user_out = UserOut(
-                id=user.id,
-                phone_number=user.phone_number,
-                role=user.role,
-                phone_verified=user.phone_verified,
-                created_at=user.created_at,
-                status=user.status,
-                first_name=user.first_name,
-                last_name=user.last_name,
-                father_name=user.father_name,
-                grandfather_name=user.grandfather_name,
-                birth_date=user.birth_date,
-                birth_address=user.birth_address,
-                home_address=user.home_address,
-                clan_id=user.clan_id,
-                county_id=user.county_id,
-                guardian_name=user.guardian_name,
-                guardian_phone=user.guardian_phone,
-                guardian_home_address=user.guardian_home_address,
-                guardian_birth_address=user.guardian_birth_address,
-                guardian_birth_date=user.guardian_birth_date,
-                guardian_relation=user.guardian_relation,
-                access_pages_password_hash=user.access_pages_password_hash
-            )
-            logger.info(f"✅ UserOut created successfully")
-        except Exception as e:
-            logger.error(f"❌ UserOut validation failed: {str(e)}")
-            logger.error(traceback.format_exc())
-            raise HTTPException(
-                status_code=500, detail=f"خطأ في إنشاء بيانات المستخدم: {str(e)}")
-
-        response = {
-            "message": "تم إنشاء الحساب. تحقق من هاتفك",
-            "user": user_out
-        }
-        logger.info(f"✅ Registration completed successfully")
-        return response
-
-    except HTTPException:
-        # Re-raise HTTP exceptions as-is
-        raise
-    except Exception as e:
-        logger.error(f"❌ Unexpected error in register_groom: {str(e)}")
-        logger.error(traceback.format_exc())
+    if user_in.role != UserRole.groom:
         raise HTTPException(
-            status_code=500,
-            detail=f"حدث خطأ غير متوقع: {str(e)}"
-        )
+            status_code=400, detail="يمكن للعرسان فقط التسجيل بأنفسهم")
+
+ # Check for existing user with this phone number
+    existing_user = db.query(User).filter(
+        or_(User.phone_number == user_in.phone_number,
+            User.guardian_phone == user_in.phone_number),
+    ).first()
+
+    # if existing_user:
+    # if existing_user.phone_verified:
+    #     # Phone is verified, don't allow registration
+    #     raise HTTPException(
+    #         status_code=400, detail=("رقم هاتف العريس موجود بالفعل ومؤكد\n"
+    #                                  "  اذا نسيت كلمة المرور يرجى إعادة تعيين كلمة المرور عبر خاصية «نسيت كلمة المرور». "
+    #                                  ))
+    if existing_user:
+        if has_reservation(db, existing_user.id):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"رقم هاتف العريس "
+                    "موجود بالفعل، ويوجد حجز فيه .\n"
+                    "يرجى إعادة تعيين كلمة المرور عبر خاصية «نسيت كلمة المرور»."
+                )
+            )
+        else:
+            # Phone is not verified, delete the old unverified user
+            user_notif = db.query(Notification).filter(
+                Notification.user_id == existing_user.id).all()
+            db.delete(user_notif)
+            db.delete(existing_user)
+            db.commit()
+
+    existing_user_by_guardian_phone = db.query(User).filter(
+        sqlalchemy.or_(User.guardian_phone == user_in.guardian_phone,
+                       User.phone_number == user_in.guardian_phone),
+
+    ).first()
+
+    # if existing_user_by_guardian_phone:
+    # if existing_user_by_guardian_phone.phone_verified:
+    #     # Phone is verified, don't allow registration
+    #     raise HTTPException(
+    #         status_code=400, detail=("رقم هاتف الولي موجود بالفعل ومؤكد\n"
+    #                                  "  اذا نسيت كلمة المرور يرجى إعادة تعيين كلمة المرور عبر خاصية «نسيت كلمة المرور». "
+    #                                  ))
+    if existing_user_by_guardian_phone:
+        if has_reservation(db, existing_user_by_guardian_phone.id):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"رقم هاتف الولي  "
+                    "مستخدم بالفعل، ويوجد حجز فيه.\n"
+                    "يرجى إعادة تعيين كلمة المرور عبر خاصية «نسيت كلمة المرور»."
+                )
+            )
+        else:
+            # Phone is not verified, delete the old unverified user
+            existing_user_by_guardian_phone_notif = db.query(Notification).filter(
+                Notification.user_id == existing_user_by_guardian_phone.id).all()
+            db.delete(existing_user_by_guardian_phone_notif)
+            db.delete(existing_user_by_guardian_phone)
+            db.commit()
+
+    clan = db.query(Clan).filter(Clan.id == user_in.clan_id).first()
+    if not clan:
+        raise HTTPException(
+            status_code=404, detail=f"معرف العشيرة {user_in.clan_id} غير موجود.")
+
+    county = db.query(County).filter(County.id == user_in.county_id).first()
+    if not county:
+        raise HTTPException(
+            status_code=404, detail=f"معرف المقاطعة {user_in.county_id} غير موجود.")
+
+    if clan.county_id != county.id:
+        raise HTTPException(
+            status_code=404, detail="العشيرة لا تنتمي إلى هذه المقاطعة.")
+
+    access_pages_password = "تعشيرت"
+    # access_pages_password = "تعشيرت"+user_in.phone_number
+    hashed_access_pages_password = auth_utils.get_password_hash(
+        access_pages_password)
+    hashed_password = auth_utils.get_password_hash(user_in.password)
+    otp_code = generate_otp_code()
+
+    # guardian_phone = validate_algerian_number(user_in.guardian_phone)
+    validate_number_phone(user_in.phone_number)
+    validate_number_phone_of_guardian(user_in.guardian_phone)
+
+    user = User(
+        phone_number=user_in.phone_number,
+        password_hash=hashed_password,
+        access_pages_password_hash=hashed_access_pages_password,
+        role=UserRole.groom,
+        first_name=user_in.first_name,
+        last_name=user_in.last_name,
+        father_name=user_in.father_name,
+        grandfather_name=user_in.grandfather_name,
+        birth_date=user_in.birth_date,
+        birth_address=user_in.birth_address,
+        home_address=user_in.home_address,
+        clan_id=user_in.clan_id,
+        county_id=user_in.county_id,
+        guardian_name=user_in.guardian_name,
+        guardian_phone=user_in.guardian_phone,
+        guardian_home_address=user_in.guardian_home_address,
+        guardian_birth_address=user_in.guardian_birth_address,
+        guardian_birth_date=user_in.guardian_birth_date,
+        guardian_relation=user_in.guardian_relation,
+        otp_code=otp_code,
+        sms_to_groom_phone=user_in.sms_to_groom_phone,
+        otp_expiration=datetime.utcnow() + timedelta(hours=4),
+        created_at=datetime.utcnow(),
+        status=UserStatus.active,
+    )
+
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    # Send OTP
+    try:
+        if user_in.sms_to_groom_phone == True:
+            send_otp_to_user_by_twilo(user.phone_number, otp_code)
+        else:
+            send_otp_to_user_by_twilo(user.guardian_phone, otp_code)
+    except ValueError as e:
+        # If SMS fails, still keep user but notify
+        logger.error(f"SMS failed for {user.phone_number}: {e}")
+        db.delete(user)
+        db.commit()
+        return {
+            "message": " فشل إرسال الرمز",
+            "error": str(e)
+        }
+
+    return {
+        "message": "تم إنشاء الحساب. تحقق من هاتفك",
+        "user": user
+    }
 
 
 @router.post("/verify-phone")

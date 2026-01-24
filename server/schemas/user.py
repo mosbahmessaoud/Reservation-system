@@ -6,6 +6,8 @@ from pydantic import BaseModel
 from typing import Literal, Optional
 from datetime import date, datetime
 
+from pyparsing import Opt
+
 
 from server.models.user import UserStatus, UserRole
 
@@ -118,6 +120,7 @@ class UserOut(UserBase):
     guardian_phone: Optional[str] = None
     guardian_relation: Optional[str] = None
     access_pages_password_hash: Optional[str] = None
+    sms_to_groom_phone: Optional[bool]
 
     class Config:
         from_attributes = True
