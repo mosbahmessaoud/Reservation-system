@@ -4,7 +4,6 @@ from server.auth_utils import verify_access_password
 from server.models.reservation import Reservation, ReservationStatus
 from server.schemas.user import AccessPasswordVerify
 from fastapi import APIRouter, Body, Depends, HTTPException, logger, status
-from platformdirs import user_config_dir
 from pydantic import BaseModel
 import sqlalchemy
 import sqlalchemy.orm
@@ -21,7 +20,6 @@ from server.utils.phone_utils import validate_algerian_number, validate_number_p
 from sqlalchemy import or_
 from .. import auth_utils
 from ..db import get_db
-
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 super_admin_required = auth_utils.require_role([UserRole.super_admin])

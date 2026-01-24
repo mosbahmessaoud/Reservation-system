@@ -6,8 +6,6 @@ from pydantic import BaseModel
 from typing import Literal, Optional
 from datetime import date, datetime
 
-from pyparsing import Opt
-
 
 from server.models.user import UserStatus, UserRole
 
