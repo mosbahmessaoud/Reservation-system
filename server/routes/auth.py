@@ -17,9 +17,10 @@ from server.schemas.user import UpdateGroomRequest, UserCreate, UserOut
 from server.schemas.auth import LoginRequest, RegisterResponse, Token
 from server.utils.otp_utils import send_otp_to_user_by_twilo, generate_otp_code, verify_otp
 from server.utils.phone_utils import validate_algerian_number, validate_number_phone, validate_number_phone_of_guardian
-from sqlalchemy import or_
+from sqlalchemy import String, or_
 from .. import auth_utils
 from ..db import get_db
+
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 super_admin_required = auth_utils.require_role([UserRole.super_admin])
@@ -112,6 +113,25 @@ def get_current_user_info(
     }
 
     return user
+
+
+@router.post("/get_groom_phone/{phone}")
+def get_groom_phone(
+    phone: String,
+    db: Session = Depends(get_db),
+):
+    user = db.query(User).filter(
+        or_(User.phone_number == phone,
+            User.guardian_phone == phone)
+    ).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="المستخدم غير موجود"
+        )
+
+    return {"phone_number": user.phone_number}
 
 
 @router.post("/login", response_model=Token)
