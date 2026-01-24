@@ -3,7 +3,6 @@
 from server.auth_utils import verify_access_password
 from server.models.reservation import Reservation, ReservationStatus
 from server.schemas.user import AccessPasswordVerify
-from tokenize import String
 from fastapi import APIRouter, Body, Depends, HTTPException, logger, status
 from platformdirs import user_config_dir
 from pydantic import BaseModel
