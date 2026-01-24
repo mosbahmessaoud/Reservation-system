@@ -167,12 +167,12 @@ def login(
     }
 
 
-def has_valid_reservation(db: Session, groom_id: int) -> bool:
+def has_reservation(db: Session, groom_id: int) -> bool:
     """Check if the groom has any valid reservations."""
     now = datetime.utcnow()
     reservations = db.query(Reservation).filter(
         Reservation.groom_id == groom_id,
-        Reservation.status == ReservationStatus.validated,
+        Reservation.status != ReservationStatus.cancelled,
         Reservation.date1 >= now,
     ).all()
     return len(reservations) > 0
@@ -194,8 +194,8 @@ def check_groom_phone_existing(
         User.role == UserRole.groom
     ).first()
 
-    if existing_user and has_valid_reservation(db, existing_user.id):
-        return {"exists": True, "message": ". رقم هاتف العريس موجود بالفعل ويوجد حجز مؤكد فيه\n اذا نسيت كلمة المرور، يرجى استخدام خاصية «نسيت كلمة المرور»  "}
+    if existing_user and has_reservation(db, existing_user.id):
+        return {"exists": True, "message": ". رقم هاتف العريس موجود بالفعل ويوجد حجز فيه\n اذا نسيت كلمة المرور، يرجى استخدام خاصية «نسيت كلمة المرور»  "}
     else:
         return {"exists": False, "message": "رقم هاتف العريس غير موجود."}
 
@@ -218,8 +218,8 @@ def check_guardian_phone_existing(
 
     ).first()
 
-    if existing_user and has_valid_reservation(db, existing_user.id):
-        return {"exists": True, "message": "رقم هاتف الولي موجود بالفعل. ويوجد حجز مؤكد فيه\n اذا نسيت كلمة المرور، يرجى استخدام خاصية «نسيت كلمة المرور»."}
+    if existing_user and has_reservation(db, existing_user.id):
+        return {"exists": True, "message": "رقم هاتف الولي موجود بالفعل. ويوجد حجز فيه\n اذا نسيت كلمة المرور، يرجى استخدام خاصية «نسيت كلمة المرور»."}
     else:
         return {"exists": False, "message": "رقم هاتف الولي غير موجود."}
 
@@ -239,12 +239,12 @@ def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
             # Phone is verified, don't allow registration
             raise HTTPException(
                 status_code=400, detail="رقم هاتف العريس موجود بالفعل ومؤكد")
-        elif has_valid_reservation(db, existing_user.id):
+        elif has_reservation(db, existing_user.id):
             raise HTTPException(
                 status_code=400,
                 detail=(
                     f"رقم هاتف العريس {user_in.phone_number} "
-                    "موجود بالفعل، ويوجد حجز مؤكد فيه .\n"
+                    "موجود بالفعل، ويوجد حجز فيه .\n"
                     "يرجى إعادة تعيين كلمة المرور عبر خاصية «نسيت كلمة المرور»."
                 )
             )
@@ -262,12 +262,12 @@ def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
             # Phone is verified, don't allow registration
             raise HTTPException(
                 status_code=400, detail="رقم هاتف الولي موجود بالفعل ومؤكد")
-        elif has_valid_reservation(db, existing_user_by_guardian_phone.id):
+        elif has_reservation(db, existing_user_by_guardian_phone.id):
             raise HTTPException(
                 status_code=400,
                 detail=(
                     f"رقم هاتف الولي {user_in.guardian_phone} "
-                    "مستخدم بالفعل، ويوجد حجز مؤكد فيه.\n"
+                    "مستخدم بالفعل، ويوجد حجز فيه.\n"
                     "يرجى إعادة تعيين كلمة المرور عبر خاصية «نسيت كلمة المرور»."
                 )
             )
