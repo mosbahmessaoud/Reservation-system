@@ -436,7 +436,7 @@ def verify_phone(phone_number: str = Body(...), code: str = Body(...), db: Sessi
 
     if user.otp_code != code:
         raise HTTPException(
-            status_code=400, detail="رمز التحقق غير صحيح")
+            status_code=400, detail=f"رمز التحقق غير صحيح  code {code} ///user.otp_code {user.otp_code} ")
 
     if user.otp_expiration < datetime.utcnow():
         raise HTTPException(
@@ -483,6 +483,41 @@ def resend_otp(payload: PhoneRequest, db: Session = Depends(get_db)):
         return {"message": "تم إرسال رمز تحقق جديد إلى هاتفك."}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/resend-verification/dev_mode")
+def resend_otp(payload: PhoneRequest, db: Session = Depends(get_db)):
+    phone_number = payload.phone_number
+
+    user = db.query(User).filter(User.phone_number == phone_number).first()
+
+    if not user:
+        user_by_guardian_phone = db.query(User).filter(
+            User.guardian_phone == phone_number).first()
+        if not user_by_guardian_phone:
+            raise HTTPException(status_code=404, detail="المستخدم غير موجود")
+
+        user = user_by_guardian_phone
+
+    print(
+        f"Debug: User found - ID: {user.id}, Phone: {user.phone_number}, Guardian Phone: {user.guardian_phone}")
+    # if user.phone_verified:
+    #     return {"message": "الهاتف مؤكد بالفعل."}
+
+    user.phone_verified = False
+    new_code = generate_otp_code()
+    user.otp_code = new_code
+    user.otp_expiration = datetime.utcnow() + timedelta(hours=2)
+    db.commit()
+
+    return {"message": "تم إرسال رمز تحقق جديد إلى هاتفك.", "otp_code": new_code,  "phone_number": phone_number,  "guardian_phone": user.guardian_phone}
+
+    # # Send new OTP
+    # try:
+    #     send_otp_to_user_by_twilo(phone_number, new_code)
+    #     return {"message": "تم إرسال رمز تحقق جديد إلى هاتفك."}
+    # except ValueError as e:
+    #     raise HTTPException(status_code=400, detail=str(e))
 
 
 # for updating nuber case
