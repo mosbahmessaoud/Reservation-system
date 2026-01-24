@@ -1,7 +1,6 @@
 
 # server\routes\auth.py
 from server.auth_utils import verify_access_password
-from server.models.notification import Notification
 from server.models.reservation import Reservation, ReservationStatus
 from server.schemas.user import AccessPasswordVerify
 from tokenize import String
@@ -256,10 +255,7 @@ def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
             )
         else:
             # Phone is not verified, delete the old unverified user
-            user_notif = db.query(Notification).filter(
-                Notification.user_id == existing_user.id).all()
-            if user_notif:
-                db.delete(user_notif)
+
             db.delete(existing_user)
             db.commit()
 
@@ -288,10 +284,7 @@ def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
             )
         else:
             # Phone is not verified, delete the old unverified user
-            existing_user_by_guardian_phone_notif = db.query(Notification).filter(
-                Notification.user_id == existing_user_by_guardian_phone.id).all()
-            if existing_user_by_guardian_phone_notif:
-                db.delete(existing_user_by_guardian_phone_notif)
+
             db.delete(existing_user_by_guardian_phone)
             db.commit()
 

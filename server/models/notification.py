@@ -29,7 +29,7 @@ class Notification(Base):
     # The reservation that triggered this notification
     reservation_id = Column(Integer, ForeignKey(
         "reservations.id", ondelete="CASCADE"), nullable=True)
- 
+
     # Notification details
     notification_type = Column(Enum(NotificationType), nullable=False)
     title = Column(String, nullable=False)
@@ -44,7 +44,9 @@ class Notification(Base):
     is_groom = Column(Boolean, default=False, nullable=False)  # new column
 
     # Relationships
-    user = relationship("User", backref="notifications", lazy="select")
+    # user = relationship("User", backref="notifications", lazy="select")
+    user = relationship("User", back_populates="notifications", lazy="select")
+
     reservation = relationship(
         "Reservation", backref="notifications", lazy="select")
 

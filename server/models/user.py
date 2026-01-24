@@ -85,6 +85,14 @@ class User(Base):
     reservations = relationship(
         "Reservation", back_populates="groom", lazy="select",     cascade="all")
 
+    notifications = relationship(
+        "Notification",
+        foreign_keys="[Notification.user_id]",
+        lazy="select",
+        cascade="all, delete-orphan",
+        passive_deletes=True
+    )
+
     def is_super_admin(self):
         return self.role == UserRole.super_admin
 
