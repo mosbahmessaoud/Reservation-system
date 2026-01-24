@@ -224,7 +224,7 @@ def check_guardian_phone_existing(
         return {"exists": False, "message": "رقم هاتف الولي غير موجود."}
 
 
-@router.post("/register/groom", response_model=RegisterResponse)
+@router.post("/register/groom", response_model=UserOut)
 def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
     if user_in.role != UserRole.groom:
         raise HTTPException(
@@ -311,7 +311,7 @@ def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
     validate_number_phone(user_in.phone_number)
     validate_number_phone_of_guardian(user_in.guardian_phone)
 
-    user = User(
+    user = UserOut(
         phone_number=user_in.phone_number,
         password_hash=hashed_password,
         access_pages_password_hash=hashed_access_pages_password,
@@ -333,8 +333,7 @@ def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
         guardian_relation=user_in.guardian_relation,
         otp_code=otp_code,
         sms_to_groom_phone=user_in.sms_to_groom_phone,
-        otp_expiration=datetime.utcnow() + timedelta(hours=2),
-        # New fields from updated model
+        otp_expiration=datetime.utcnow() + timedelta(hours=4),
         created_at=datetime.utcnow(),
         status=UserStatus.active,
     )
@@ -353,15 +352,19 @@ def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
         logger.error(f"SMS failed for {user.phone_number}: {e}")
         db.delete(user)
         db.commit()
-        return {
-            "message": " فشل إرسال الرمز",
-            "error": str(e)
-        }
+        raise HTTPException(
+            status_code=500, detail=f"خطأ في إرسال الرمز: {str(e)}")
 
-    return {
-        "message": "تم إنشاء الحساب. تحقق من هاتفك",
-        "user": user
-    }
+        # return {
+        #     "message": " فشل إرسال الرمز",
+        #     "error": str(e)
+        # }
+
+    return user
+    # return {
+    #     "message": "تم إنشاء الحساب. تحقق من هاتفك",
+    #     "user": user
+    # }
 
 
 @router.post("/verify-phone")
