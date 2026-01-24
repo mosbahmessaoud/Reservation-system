@@ -77,8 +77,6 @@ class Reservation(Base):
     custom_madaeh_committee_name = Column(String, nullable=True)
     tilawa_type = Column(String, nullable=True)
 
-    
-
     # Relationships
     groom = relationship("User", back_populates="reservations", lazy="select")
     clan = relationship("Clan", back_populates="reservations", lazy="select")

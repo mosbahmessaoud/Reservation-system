@@ -29,6 +29,7 @@ class OTPVerifyRequest(BaseModel):
     phone_number: str
     otp_code: str
 
+
 class RegisterResponse(BaseModel):
     message: str
     user: UserOut
