@@ -240,13 +240,13 @@ def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
     ).first()
 
     if existing_user:
-        if existing_user.phone_verified:
-            # Phone is verified, don't allow registration
-            raise HTTPException(
-                status_code=400, detail=("رقم هاتف العريس موجود بالفعل ومؤكد\n"
-                                         "  اذا نسيت كلمة المرور يرجى إعادة تعيين كلمة المرور عبر خاصية «نسيت كلمة المرور». "
-                                         ))
-        elif has_reservation(db, existing_user.id):
+        # if existing_user.phone_verified:
+        #     # Phone is verified, don't allow registration
+        #     raise HTTPException(
+        #         status_code=400, detail=("رقم هاتف العريس موجود بالفعل ومؤكد\n"
+        #                                  "  اذا نسيت كلمة المرور يرجى إعادة تعيين كلمة المرور عبر خاصية «نسيت كلمة المرور». "
+        #                                  ))
+        if has_reservation(db, existing_user.id):
             raise HTTPException(
                 status_code=400,
                 detail=(
@@ -267,13 +267,13 @@ def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
     ).first()
 
     if existing_user_by_guardian_phone:
-        if existing_user_by_guardian_phone.phone_verified:
-            # Phone is verified, don't allow registration
-            raise HTTPException(
-                status_code=400, detail=("رقم هاتف الولي موجود بالفعل ومؤكد\n"
-                                         "  اذا نسيت كلمة المرور يرجى إعادة تعيين كلمة المرور عبر خاصية «نسيت كلمة المرور». "
-                                         ))
-        elif has_reservation(db, existing_user_by_guardian_phone.id):
+        # if existing_user_by_guardian_phone.phone_verified:
+        #     # Phone is verified, don't allow registration
+        #     raise HTTPException(
+        #         status_code=400, detail=("رقم هاتف الولي موجود بالفعل ومؤكد\n"
+        #                                  "  اذا نسيت كلمة المرور يرجى إعادة تعيين كلمة المرور عبر خاصية «نسيت كلمة المرور». "
+        #                                  ))
+        if has_reservation(db, existing_user_by_guardian_phone.id):
             raise HTTPException(
                 status_code=400,
                 detail=(
