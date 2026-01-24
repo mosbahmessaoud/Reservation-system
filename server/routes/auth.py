@@ -192,7 +192,6 @@ def check_groom_phone_existing(
     existing_user = db.query(User).filter(
         sqlalchemy.or_(User.guardian_phone == data.phone_number,
                        User.phone_number == data.phone_number),
-        User.role == UserRole.groom
     ).first()
 
     if existing_user and has_reservation(db, existing_user.id):
@@ -216,7 +215,6 @@ def check_guardian_phone_existing(
 
         sqlalchemy.or_(User.guardian_phone == data.phone_number,
                        User.phone_number == data.phone_number),
-        User.role == UserRole.groom
 
     ).first()
 
@@ -236,7 +234,6 @@ def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
     existing_user = db.query(User).filter(
         sqlalchemy.or_(User.phone_number == user_in.phone_number,
                        User.guardian_phone == user_in.phone_number),
-        User.role == UserRole.groom,
     ).first()
 
     if existing_user:
@@ -264,6 +261,7 @@ def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
     existing_user_by_guardian_phone = db.query(User).filter(
         sqlalchemy.or_(User.guardian_phone == user_in.guardian_phone,
                        User.phone_number == user_in.guardian_phone),
+
     ).first()
 
     if existing_user_by_guardian_phone:
