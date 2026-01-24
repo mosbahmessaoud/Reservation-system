@@ -19,7 +19,7 @@ from server.schemas.user import UpdateGroomRequest, UserCreate, UserOut
 from server.schemas.auth import LoginRequest, RegisterResponse, Token
 from server.utils.otp_utils import send_otp_to_user_by_twilo, generate_otp_code, verify_otp
 from server.utils.phone_utils import validate_algerian_number, validate_number_phone, validate_number_phone_of_guardian
-
+from sqlalchemy import or_
 from .. import auth_utils
 from ..db import get_db
 
@@ -232,8 +232,8 @@ def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
 
  # Check for existing user with this phone number
     existing_user = db.query(User).filter(
-        sqlalchemy.or_(User.phone_number == user_in.phone_number,
-                       User.guardian_phone == user_in.phone_number),
+        or_(User.phone_number == user_in.phone_number,
+            User.guardian_phone == user_in.phone_number),
     ).first()
 
     # if existing_user:
@@ -332,6 +332,7 @@ def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
         guardian_birth_date=user_in.guardian_birth_date,
         guardian_relation=user_in.guardian_relation,
         otp_code=otp_code,
+        sms_to_groom_phone=user_in.sms_to_groom_phone,
         otp_expiration=datetime.utcnow() + timedelta(hours=2),
         # New fields from updated model
         created_at=datetime.utcnow(),
@@ -350,9 +351,10 @@ def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
     except ValueError as e:
         # If SMS fails, still keep user but notify
         logger.error(f"SMS failed for {user.phone_number}: {e}")
+        db.delete(user)
+        db.commit()
         return {
-            "message": "تم إنشاء الحساب لكن فشل إرسال الرمز",
-            "user": user,
+            "message": " فشل إرسال الرمز",
             "error": str(e)
         }
 

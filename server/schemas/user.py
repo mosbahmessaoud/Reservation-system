@@ -103,33 +103,14 @@ class DeleteResponse(BaseModel):
     message: str
 
 
-# class UserOut(UserBase):
-#     id: int
-#     role: UserRole  # Changed from str to UserRole enum
-#     phone_verified: bool = False
-#     created_at: datetime  # Added created_at field
-#     status: UserStatus  # Made required, not Optional
-
-#     # Guardian info only for grooms
-#     guardian_name: Optional[str] = None
-#     guardian_home_address: Optional[str] = None
-#     guardian_birth_address: Optional[str] = None
-#     guardian_birth_date: Optional[date] = None
-#     guardian_phone: Optional[str] = None
-#     guardian_relation: Optional[str] = None
-#     access_pages_password_hash: Optional[str] = None
-
-#     class Config:
-#         from_attributes = True
-
 class UserOut(UserBase):
     id: int
-    role: UserRole
+    role: UserRole  # Changed from str to UserRole enum
     phone_verified: bool = False
-    created_at: datetime
-    status: UserStatus
+    created_at: datetime  # Added created_at field
+    status: UserStatus  # Made required, not Optional
 
-    # Guardian info
+    # Guardian info only for grooms
     guardian_name: Optional[str] = None
     guardian_home_address: Optional[str] = None
     guardian_birth_address: Optional[str] = None
@@ -140,10 +121,6 @@ class UserOut(UserBase):
 
     class Config:
         from_attributes = True
-        json_encoders = {
-            datetime: lambda v: v.isoformat() if v else None,
-            date: lambda v: v.isoformat() if v else None
-        }
 
 
 class UserListResponse(BaseModel):
