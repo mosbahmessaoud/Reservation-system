@@ -190,7 +190,8 @@ def check_groom_phone_existing(
 ):
 
     existing_user = db.query(User).filter(
-        User.phone_number == data.phone_number,
+        sqlalchemy.or_(User.guardian_phone == data.phone_number,
+                       User.phone_number == data.phone_number),
         User.role == UserRole.groom
     ).first()
 
@@ -213,7 +214,8 @@ def check_guardian_phone_existing(
 
     existing_user = db.query(User).filter(
 
-        User.guardian_phone == data.phone_number,
+        sqlalchemy.or_(User.guardian_phone == data.phone_number,
+                       User.phone_number == data.phone_number),
         User.role == UserRole.groom
 
     ).first()
@@ -232,13 +234,18 @@ def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
 
  # Check for existing user with this phone number
     existing_user = db.query(User).filter(
-        User.phone_number == user_in.phone_number).first()
+        sqlalchemy.or_(User.phone_number == user_in.phone_number,
+                       User.guardian_phone == user_in.phone_number),
+        User.role == UserRole.groom,
+    ).first()
 
     if existing_user:
         if existing_user.phone_verified:
             # Phone is verified, don't allow registration
             raise HTTPException(
-                status_code=400, detail="رقم هاتف العريس موجود بالفعل ومؤكد")
+                status_code=400, detail=("رقم هاتف العريس موجود بالفعل ومؤكد\n"
+                                         "  اذا نسيت كلمة المرور يرجى إعادة تعيين كلمة المرور عبر خاصية «نسيت كلمة المرور». "
+                                         ))
         elif has_reservation(db, existing_user.id):
             raise HTTPException(
                 status_code=400,
@@ -255,13 +262,17 @@ def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
             db.commit()
 
     existing_user_by_guardian_phone = db.query(User).filter(
-        User.guardian_phone == user_in.guardian_phone).first()
+        sqlalchemy.or_(User.guardian_phone == user_in.guardian_phone,
+                       User.phone_number == user_in.guardian_phone),
+    ).first()
 
     if existing_user_by_guardian_phone:
         if existing_user_by_guardian_phone.phone_verified:
             # Phone is verified, don't allow registration
             raise HTTPException(
-                status_code=400, detail="رقم هاتف الولي موجود بالفعل ومؤكد")
+                status_code=400, detail=("رقم هاتف الولي موجود بالفعل ومؤكد\n"
+                                         "  اذا نسيت كلمة المرور يرجى إعادة تعيين كلمة المرور عبر خاصية «نسيت كلمة المرور». "
+                                         ))
         elif has_reservation(db, existing_user_by_guardian_phone.id):
             raise HTTPException(
                 status_code=400,
@@ -436,7 +447,7 @@ def verify_phone(phone_number: str = Body(...), code: str = Body(...), db: Sessi
 
     if user.otp_code != code:
         raise HTTPException(
-            status_code=400, detail=f"رمز التحقق غير صحيح  code {code} ///user.otp_code {user.otp_code} ")
+            status_code=400, detail=f"رمز التحقق غير صحيح ")
 
     if user.otp_expiration < datetime.utcnow():
         raise HTTPException(
