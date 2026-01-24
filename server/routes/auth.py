@@ -258,7 +258,8 @@ def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
             # Phone is not verified, delete the old unverified user
             user_notif = db.query(Notification).filter(
                 Notification.user_id == existing_user.id).all()
-            db.delete(user_notif)
+            if user_notif:
+                db.delete(user_notif)
             db.delete(existing_user)
             db.commit()
 
@@ -289,7 +290,8 @@ def register_groom(user_in: UserCreate, db: Session = Depends(get_db)):
             # Phone is not verified, delete the old unverified user
             existing_user_by_guardian_phone_notif = db.query(Notification).filter(
                 Notification.user_id == existing_user_by_guardian_phone.id).all()
-            db.delete(existing_user_by_guardian_phone_notif)
+            if existing_user_by_guardian_phone_notif:
+                db.delete(existing_user_by_guardian_phone_notif)
             db.delete(existing_user_by_guardian_phone)
             db.commit()
 
