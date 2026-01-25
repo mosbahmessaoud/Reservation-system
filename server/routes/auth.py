@@ -218,6 +218,8 @@ def check_groom_phone_existing(
 
     elif existing_user and existing_user.role == UserRole.super_admin:
         return {"exists": True, "message": f"رقم هاتف العريس {data.phone_number} مرتبط بحساب اخر يرجى تغير رقم الهاتف "}
+    elif existing_user:
+        return {"exists": False, "message": "رقم هاتف العريس موجود."}
     else:
         return {"exists": False, "message": "رقم هاتف العريس غير موجود."}
 
