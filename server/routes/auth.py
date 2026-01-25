@@ -210,8 +210,8 @@ def check_groom_phone_existing(
         sqlalchemy.or_(User.guardian_phone == data.phone_number,
                        User.phone_number == data.phone_number),
     ).first()
-
-    if existing_user and has_reservation(db, existing_user.id):
+    has_res = has_reservation(db, existing_user.id)
+    if existing_user and has_res:
         return {"exists": True, "message": f". رقم هاتف العريس {data.phone_number} موجود بالفعل ويوجد فيه حجز \n اذا نسيت كلمة المرور، يرجى استخدام خاصية «نسيت كلمة المرور»  "}
     elif existing_user and existing_user.role == UserRole.clan_admin:
         return {"exists": True, "message": f"رقم هاتف العريس {data.phone_number} مرتبط بحساب اخر يرجى تغير رقم الهاتف ."}
@@ -219,7 +219,7 @@ def check_groom_phone_existing(
     elif existing_user and existing_user.role == UserRole.super_admin:
         return {"exists": True, "message": f"رقم هاتف العريس {data.phone_number} مرتبط بحساب اخر يرجى تغير رقم الهاتف "}
     elif existing_user:
-        return {"exists": False, "message": "رقم هاتف العريس موجود."}
+        return {"exists": False, "message": f"رقم هاتف العريس موجود. {has_res}"}
     else:
         return {"exists": False, "message": "رقم هاتف العريس غير موجود."}
 
