@@ -218,8 +218,6 @@ def check_groom_phone_existing(
 
     elif existing_user and existing_user.role == UserRole.super_admin:
         return {"exists": True, "message": f"رقم هاتف العريس {data.phone_number} مرتبط بحساب اخر يرجى تغير رقم الهاتف "}
-    elif existing_user:
-        return {"exists": False, "message": f"رقم هاتف العريس موجود. {has_res}"}
     else:
         return {"exists": False, "message": "رقم هاتف العريس غير موجود."}
 
@@ -622,16 +620,12 @@ def reset_password(
     db: Session = Depends(get_db)
 ):
     user = db.query(User).filter(
-        User.phone_number == request.phone_number
+        or_(User.phone_number == request.phone_number,
+            User.guardian_phone == request.phone_number)
     ).first()
 
     if not user:
-        user_by_guardian_phone = db.query(User).filter(
-            User.guardian_phone == request.phone_number).first()
-        if not user_by_guardian_phone:
-            raise HTTPException(status_code=404, detail="المستخدم غير موجود")
-
-    user = user_by_guardian_phone
+        raise HTTPException(status_code=404, detail="المستخدم غير موجود")
 
     if not user.phone_verified:
         raise HTTPException(
@@ -639,27 +633,54 @@ def reset_password(
             detail="رقم الهاتف غير مؤكد"
         )
 
-    if user.otp_expiration is not None:
-        if user.otp_code != request.otp_code:
-            raise HTTPException(
-                status_code=400,
-                detail="رمز التحقق غير صحيح"
-            )
-
-    if user.otp_expiration is not None:
-        if user.otp_expiration < datetime.utcnow():
-            raise HTTPException(
-                status_code=400,
-                detail="انتهت صلاحية رمز التحقق"
-            )
-
     # Update password and clear OTP
     user.password_hash = auth_utils.get_password_hash(request.new_password)
-    user.otp_code = None
-    user.otp_expiration = None
+
     db.commit()
 
     return {"message": "تم تغيير كلمة المرور بنجاح. يمكنك الآن تسجيل الدخول."}
+
+# @router.post("/reset-password")
+# def reset_password(
+#     request: ResetPasswordRequest,
+#     db: Session = Depends(get_db)
+# ):
+#     user = db.query(User).filter(
+#         or_(User.phone_number == request.phone_number,
+#             User.guardian_phone == request.phone_number)
+#     ).first()
+
+#     if not user:
+#          raise HTTPException(status_code=404, detail="المستخدم غير موجود")
+
+
+#     if not user.phone_verified:
+#         raise HTTPException(
+#             status_code=400,
+#             detail="رقم الهاتف غير مؤكد"
+#         )
+
+#     if user.otp_expiration is not None:
+#         if user.otp_code != request.otp_code:
+#             raise HTTPException(
+#                 status_code=400,
+#                 detail="رمز التحقق غير صحيح"
+#             )
+
+#     if user.otp_expiration is not None:
+#         if user.otp_expiration < datetime.utcnow():
+#             raise HTTPException(
+#                 status_code=400,
+#                 detail="انتهت صلاحية رمز التحقق"
+#             )
+
+#     # Update password and clear OTP
+#     user.password_hash = auth_utils.get_password_hash(request.new_password)
+#     user.otp_code = None
+#     user.otp_expiration = None
+#     db.commit()
+
+#     return {"message": "تم تغيير كلمة المرور بنجاح. يمكنك الآن تسجيل الدخول."}
 
 
 @router.put("/update-groom/{groom_id}", response_model=UserOut)
