@@ -213,10 +213,10 @@ def check_groom_phone_existing(
 
     if existing_user and has_reservation(db, existing_user.id):
         return {"exists": True, "message": ". رقم هاتف العريس موجود بالفعل ويوجد حجز فيه\n اذا نسيت كلمة المرور، يرجى استخدام خاصية «نسيت كلمة المرور»  "}
-    elif existing_user and existing_user.is_clan_admin:
+    elif existing_user and existing_user.role == UserRole.clan_admin:
         return {"exists": True, "message": "رقم هاتف العريس مرتبط بحساب  يرجى تغير رقم الهاتف ."}
 
-    elif existing_user and existing_user.is_super_admin:
+    elif existing_user and existing_user.role == UserRole.super_admin:
         return {"exists": True, "message": "رقم هاتف العريس مرتبط بحساب  يرجى تغير رقم الهاتف "}
     else:
         return {"exists": False, "message": "رقم هاتف العريس غير موجود."}
@@ -242,9 +242,9 @@ def check_guardian_phone_existing(
 
     if existing_user and has_reservation(db, existing_user.id):
         return {"exists": True, "message": f"رقم هاتف الولي {data.phone_number} موجود بالفعل. ويوجد حجز فيه\n اذا نسيت كلمة المرور، يرجى استخدام خاصية «نسيت كلمة المرور»."}
-    elif existing_user and existing_user.is_clan_admin:
+    elif existing_user and existing_user.role == UserRole.clan_admin:
         return {"exists": True, "message": f"رقم هاتف الولي {data.phone_number} مرتبط بحساب  يرجى تغير رقم الهاتف ."}
-    elif existing_user and existing_user.is_super_admin:
+    elif existing_user and existing_user.role == UserRole.super_admin:
         return {"exists": True, "message": f"رقم هاتف الولي {data.phone_number} مرتبط بحساب  يرجى تغير رقم الهاتف "}
     else:
         return {"exists": False, "message": "رقم هاتف الولي غير موجود."}
