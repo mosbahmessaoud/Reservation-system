@@ -163,8 +163,6 @@ class AccessPasswordResponse(BaseModel):
 
 
 class UserCreateBulkGrooms(UserBase):
-    password: str
-    role: UserRole
     # Guardian info only for grooms
     guardian_name: Optional[str] = None
     guardian_home_address: Optional[str] = None
