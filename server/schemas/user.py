@@ -9,6 +9,8 @@ from datetime import date, datetime
 
 from server.models.user import UserStatus, UserRole
 
+from typing import List
+
 
 class UserStatus(str, Enum):
     active = "active"
@@ -155,3 +157,34 @@ class AccessPasswordResponse(BaseModel):
     message: str
     user_id: int
     generated_password: str  # Return once for user to save
+
+
+# uploading exel
+
+
+class UserCreateBulkGrooms(UserBase):
+    password: str
+    role: UserRole
+    # Guardian info only for grooms
+    guardian_name: Optional[str] = None
+    guardian_home_address: Optional[str] = None
+    guardian_birth_address: Optional[str] = None
+    guardian_birth_date: Optional[date] = None
+    guardian_phone: Optional[str] = None
+    guardian_relation: Optional[str] = None
+    status: Optional[UserStatus] = UserStatus.active  # Set default value
+    # New field to indicate SMS recipient
+    sms_to_groom_phone: Optional[bool] = False
+
+
+class BulkRegistrationResult(BaseModel):
+    total_rows: int
+    successful: int
+    skipped: int
+    failed: int
+    details: List[dict]
+
+
+class BulkRegisterResponse(BaseModel):
+    message: str
+    result: BulkRegistrationResult
