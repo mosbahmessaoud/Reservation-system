@@ -404,13 +404,6 @@ def register_groom(user_in: UserCreateBulkGrooms, db: Session = Depends(get_db))
             User.guardian_phone == user_in.phone_number),
     ).first()
 
-    # if existing_user:
-    # if existing_user.phone_verified:
-    #     # Phone is verified, don't allow registration
-    #     raise HTTPException(
-    #         status_code=400, detail=("رقم هاتف العريس موجود بالفعل ومؤكد\n"
-    #                                  "  اذا نسيت كلمة المرور يرجى إعادة تعيين كلمة المرور عبر خاصية «نسيت كلمة المرور». "
-    #                                  ))
     if existing_user:
         raise HTTPException(
             status_code=400,
@@ -427,13 +420,6 @@ def register_groom(user_in: UserCreateBulkGrooms, db: Session = Depends(get_db))
 
         ).first()
 
-        # if existing_user_by_guardian_phone:
-        # if existing_user_by_guardian_phone.phone_verified:
-        #     # Phone is verified, don't allow registration
-        #     raise HTTPException(
-        #         status_code=400, detail=("رقم هاتف الولي موجود بالفعل ومؤكد\n"
-        #                                  "  اذا نسيت كلمة المرور يرجى إعادة تعيين كلمة المرور عبر خاصية «نسيت كلمة المرور». "
-        #                                  ))
         if existing_user_by_guardian_phone:
             raise HTTPException(
                 status_code=400,
