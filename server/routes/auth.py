@@ -420,29 +420,29 @@ def register_groom(user_in: UserCreateBulkGrooms, db: Session = Depends(get_db))
                 "يرجى إعادة تعيين كلمة المرور عبر خاصية «نسيت كلمة المرور»."
             )
         )
+    if user_in.guardian_phone:
+        existing_user_by_guardian_phone = db.query(User).filter(
+            sqlalchemy.or_(User.guardian_phone == user_in.guardian_phone,
+                           User.phone_number == user_in.guardian_phone),
 
-    existing_user_by_guardian_phone = db.query(User).filter(
-        sqlalchemy.or_(User.guardian_phone == user_in.guardian_phone,
-                       User.phone_number == user_in.guardian_phone),
+        ).first()
 
-    ).first()
-
-    # if existing_user_by_guardian_phone:
-    # if existing_user_by_guardian_phone.phone_verified:
-    #     # Phone is verified, don't allow registration
-    #     raise HTTPException(
-    #         status_code=400, detail=("رقم هاتف الولي موجود بالفعل ومؤكد\n"
-    #                                  "  اذا نسيت كلمة المرور يرجى إعادة تعيين كلمة المرور عبر خاصية «نسيت كلمة المرور». "
-    #                                  ))
-    if existing_user_by_guardian_phone:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"رقم هاتف الولي  "
-                "مستخدم بالفعل، ويوجد حجز فيه.\n"
-                "يرجى إعادة تعيين كلمة المرور عبر خاصية «نسيت كلمة المرور»."
+        # if existing_user_by_guardian_phone:
+        # if existing_user_by_guardian_phone.phone_verified:
+        #     # Phone is verified, don't allow registration
+        #     raise HTTPException(
+        #         status_code=400, detail=("رقم هاتف الولي موجود بالفعل ومؤكد\n"
+        #                                  "  اذا نسيت كلمة المرور يرجى إعادة تعيين كلمة المرور عبر خاصية «نسيت كلمة المرور». "
+        #                                  ))
+        if existing_user_by_guardian_phone:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"رقم هاتف الولي  "
+                    "مستخدم بالفعل، ويوجد حجز فيه.\n"
+                    "يرجى إعادة تعيين كلمة المرور عبر خاصية «نسيت كلمة المرور»."
+                )
             )
-        )
 
     clan = db.query(Clan).filter(Clan.id == user_in.clan_id).first()
     if not clan:
