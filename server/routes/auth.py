@@ -404,60 +404,162 @@ def register_groom(user_in: UserCreateBulkGrooms, db: Session = Depends(get_db))
             User.guardian_phone == user_in.phone_number),
     ).first()
 
+    # if existing_user:
+    # if existing_user.phone_verified:
+    #     # Phone is verified, don't allow registration
+    #     raise HTTPException(
+    #         status_code=400, detail=("رقم هاتف العريس موجود بالفعل ومؤكد\n"
+    #                                  "  اذا نسيت كلمة المرور يرجى إعادة تعيين كلمة المرور عبر خاصية «نسيت كلمة المرور». "
+    #                                  ))
+    if existing_user:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"رقم هاتف العريس "
+                "موجود بالفعل، ويوجد حجز فيه .\n"
+                "يرجى إعادة تعيين كلمة المرور عبر خاصية «نسيت كلمة المرور»."
+            )
+        )
+
     existing_user_by_guardian_phone = db.query(User).filter(
         sqlalchemy.or_(User.guardian_phone == user_in.guardian_phone,
                        User.phone_number == user_in.guardian_phone),
 
     ).first()
 
-    if not existing_user and not existing_user_by_guardian_phone:
+    # if existing_user_by_guardian_phone:
+    # if existing_user_by_guardian_phone.phone_verified:
+    #     # Phone is verified, don't allow registration
+    #     raise HTTPException(
+    #         status_code=400, detail=("رقم هاتف الولي موجود بالفعل ومؤكد\n"
+    #                                  "  اذا نسيت كلمة المرور يرجى إعادة تعيين كلمة المرور عبر خاصية «نسيت كلمة المرور». "
+    #                                  ))
+    if existing_user_by_guardian_phone:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"رقم هاتف الولي  "
+                "مستخدم بالفعل، ويوجد حجز فيه.\n"
+                "يرجى إعادة تعيين كلمة المرور عبر خاصية «نسيت كلمة المرور»."
+            )
+        )
 
-        clan = db.query(Clan).filter(Clan.id == user_in.clan_id).first()
-        if clan:
+    clan = db.query(Clan).filter(Clan.id == user_in.clan_id).first()
+    if not clan:
+        raise HTTPException(
+            status_code=404, detail=f"معرف العشيرة {user_in.clan_id} غير موجود.")
 
-            county = db.query(County).filter(
-                County.id == user_in.county_id).first()
-            if county:
+    county = db.query(County).filter(County.id == user_in.county_id).first()
+    if not county:
+        raise HTTPException(
+            status_code=404, detail=f"معرف المقاطعة {user_in.county_id} غير موجود.")
 
-                access_pages_password = "تعشيرت"
-                # access_pages_password = "تعشيرت"+user_in.phone_number
-                hashed_access_pages_password = auth_utils.get_password_hash(
-                    access_pages_password)
-                hashed_password = auth_utils.get_password_hash(
-                    user_in.phone_number)  # default password is phone number
+    if clan.county_id != county.id:
+        raise HTTPException(
+            status_code=404, detail="العشيرة لا تنتمي إلى هذه المقاطعة.")
 
-                user = User(
-                    phone_number=user_in.phone_number,
-                    password_hash=hashed_password,
-                    access_pages_password_hash=hashed_access_pages_password,
-                    role=UserRole.groom,
-                    first_name=user_in.first_name,
-                    last_name=user_in.last_name,
-                    father_name=user_in.father_name,
-                    grandfather_name=user_in.grandfather_name,
-                    birth_date=user_in.birth_date,
-                    birth_address=user_in.birth_address,
-                    home_address=user_in.home_address,
-                    clan_id=user_in.clan_id,
-                    county_id=user_in.county_id,
-                    guardian_name=user_in.guardian_name,
-                    guardian_phone=user_in.guardian_phone,
-                    guardian_home_address=user_in.home_address,
-                    guardian_birth_address=user_in.birth_address,
-                    guardian_birth_date=user_in.guardian_birth_date,
-                    guardian_relation=user_in.guardian_relation,
-                    created_at=datetime.utcnow(),
-                    status=UserStatus.active,
-                )
+    access_pages_password = "تعشيرت"
+    # access_pages_password = "تعشيرت"+user_in.phone_number
+    hashed_access_pages_password = auth_utils.get_password_hash(
+        access_pages_password)
+    hashed_password = auth_utils.get_password_hash(user_in.phone_number)
 
-                db.add(user)
-                db.commit()
-                db.refresh(user)
+    user = User(
+        phone_number=user_in.phone_number,
+        password_hash=hashed_password,
+        access_pages_password_hash=hashed_access_pages_password,
+        role=UserRole.groom,
+        first_name=user_in.first_name,
+        last_name=user_in.last_name,
+        father_name=user_in.father_name,
+        grandfather_name=user_in.grandfather_name,
+        birth_date=user_in.birth_date,
+        birth_address=user_in.birth_address,
+        home_address=user_in.home_address,
+        clan_id=user_in.clan_id,
+        county_id=user_in.county_id,
+        guardian_name=user_in.guardian_name,
+        guardian_phone=user_in.guardian_phone,
+        guardian_home_address=user_in.home_address,
+        guardian_birth_address=user_in.birth_address,
+        guardian_birth_date=user_in.guardian_birth_date,
+        guardian_relation=user_in.guardian_relation,
+        created_at=datetime.utcnow(),
+        status=UserStatus.active,
+    )
 
-                return {
-                    "message": "تم إنشاء الحساب. تحقق من هاتفك",
-                    "user": user
-                }
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    return {
+        "message": "تم إنشاء الحساب. تحقق من هاتفك",
+        "user": user
+    }
+
+# @router.post("/Register/GgoomsbyAdmin", response_model=RegisterResponse, dependencies=[Depends(clan_admin_required)])
+# def register_groom(user_in: UserCreateBulkGrooms, db: Session = Depends(get_db)):
+
+#  # Check for existing user with this phone number
+#     existing_user = db.query(User).filter(
+#         or_(User.phone_number == user_in.phone_number,
+#             User.guardian_phone == user_in.phone_number),
+#     ).first()
+
+#     existing_user_by_guardian_phone = db.query(User).filter(
+#         sqlalchemy.or_(User.guardian_phone == user_in.guardian_phone,
+#                        User.phone_number == user_in.guardian_phone),
+
+#     ).first()
+
+#     if not existing_user and not existing_user_by_guardian_phone:
+
+#         clan = db.query(Clan).filter(Clan.id == user_in.clan_id).first()
+#         if clan:
+
+#             county = db.query(County).filter(
+#                 County.id == user_in.county_id).first()
+#             if county:
+
+#                 access_pages_password = "تعشيرت"
+#                 # access_pages_password = "تعشيرت"+user_in.phone_number
+#                 hashed_access_pages_password = auth_utils.get_password_hash(
+#                     access_pages_password)
+#                 hashed_password = auth_utils.get_password_hash(
+#                     user_in.phone_number)  # default password is phone number
+
+#                 user = User(
+#                     phone_number=user_in.phone_number,
+#                     password_hash=hashed_password,
+#                     access_pages_password_hash=hashed_access_pages_password,
+#                     role=UserRole.groom,
+#                     first_name=user_in.first_name,
+#                     last_name=user_in.last_name,
+#                     father_name=user_in.father_name,
+#                     grandfather_name=user_in.grandfather_name,
+#                     birth_date=user_in.birth_date,
+#                     birth_address=user_in.birth_address,
+#                     home_address=user_in.home_address,
+#                     clan_id=user_in.clan_id,
+#                     county_id=user_in.county_id,
+#                     guardian_name=user_in.guardian_name,
+#                     guardian_phone=user_in.guardian_phone,
+#                     guardian_home_address=user_in.home_address,
+#                     guardian_birth_address=user_in.birth_address,
+#                     guardian_birth_date=user_in.guardian_birth_date,
+#                     guardian_relation=user_in.guardian_relation,
+#                     created_at=datetime.utcnow(),
+#                     status=UserStatus.active,
+#                 )
+
+#                 db.add(user)
+#                 db.commit()
+#                 db.refresh(user)
+
+#                 return {
+#                     "message": "تم إنشاء الحساب. تحقق من هاتفك",
+#                     "user": user
+#                 }
 
 
 @router.post("/RegisterBulk/GroomsFromExcel", response_model=BulkRegisterResponse, dependencies=[Depends(clan_admin_required)])
