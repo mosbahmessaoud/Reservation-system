@@ -484,6 +484,7 @@ def register_groom(user_in: UserCreateBulkGrooms, db: Session = Depends(get_db))
         guardian_birth_address=user_in.birth_address,
         guardian_birth_date=user_in.guardian_birth_date,
         guardian_relation=user_in.guardian_relation,
+        phone_verified=True,
         created_at=datetime.utcnow(),
         status=UserStatus.active,
     )
