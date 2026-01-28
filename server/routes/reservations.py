@@ -283,7 +283,189 @@ def check_capacity_limits(db: Session, base_filters: List, settings: ClanSetting
 def create_reservation(resv_in: ReservationCreate, db: Session = Depends(get_db),
                        current: User = Depends(groom_required)):
 
+    try:
+        # Test PDF generation capabilities on first run
+        try:
+            test_result = test_pdf_generation()
+            if not test_result:
+                logger.warning("PDF generation test failed, but proceeding...")
+        except Exception as e:
+            logger.warning(f"PDF generation test error: {e}")
 
+        # BV004-BV005: Check for existing active reservation
+        existing_active = db.query(Reservation).filter(
+            Reservation.county_id == current.county_id,
+            Reservation.groom_id == current.id,
+            Reservation.status != ReservationStatus.cancelled
+        ).first()
+
+        if existing_active:
+            raise HTTPException(400, "لديك بالفعل حجز نشط")
+
+        # BV006: Validate guardian information completeness
+        if not validate_guardian_completeness(current):
+            raise HTTPException(400, "معلومات ولي الأمر غير مكتملة")
+
+        # BV007-BV009: Determine target clan and validate
+        is_same_clan = resv_in.clan_id == current.clan_id
+        target_clan = None
+
+        if not is_same_clan:
+            target_clan = db.query(Clan).filter(
+                Clan.id == resv_in.clan_id).first()
+            if not target_clan:
+                raise HTTPException(400, "العشيرة المستهدفة غير موجودة")
+            if target_clan.county_id != current.county_id:
+                raise HTTPException(400, "الحجوزات بين المحافظات غير مسموحة")
+
+        # Get settings
+        settings = get_settings_for_clan(db, resv_in.clan_id)
+        if not settings:
+            raise HTTPException(400,
+                                f"إعدادات {'العشيرة' if is_same_clan else 'العشيرة المستهدفة'} غير موجودة")
+
+        # BV010: Check hall availability
+        hall = db.query(Hall).filter(Hall.clan_id == resv_in.clan_id).first()
+        if not hall:
+            clan_name = f" في  {target_clan.name}" if not is_same_clan else ""
+            raise HTTPException(400, f"لا توجد قاعة{clan_name}")
+
+        # Parse and validate dates
+        date1 = resv_in.date1
+        date2 = date1 + timedelta(days=1) if resv_in.date2_bool else None
+
+        # RC009: Validate dates are not in the past
+        today = date.today()
+        if date1 < today:
+            raise HTTPException(400, "لا يمكن الحجز في الماضي")
+        if date2 and date2 < today:
+            raise HTTPException(
+                400, "التاريخ الثاني لا يمكن أن يكون في الماضي")
+
+        # TD001-TD004: Validate two-day reservation month restrictions
+        if date2:
+            allowed_months = [
+                int(m) for m in settings.allowed_months_two_day.split(',')]
+            if date1.month not in allowed_months:
+                raise HTTPException(
+                    400, "الحجوزات ليومين غير مسموحة في هذا الشهر")
+            # Check if dates span different months with restrictions
+            if date2.month != date1.month and date2.month not in allowed_months:
+                raise HTTPException(400, "الشهر الثاني لا يسمح بحجوزات يومين")
+
+        clan_name = f" في  {target_clan.name}" if not is_same_clan else ""
+
+        # Build base query filters
+        base_filters = [
+            Reservation.county_id == current.county_id,
+            Reservation.clan_id == resv_in.clan_id
+        ]
+
+        # Use SELECT FOR UPDATE to prevent race conditions
+        db.execute(text(
+            "SELECT 1 FROM reservations WHERE county_id = :county_id AND clan_id = :clan_id "
+            "AND status != 'cancelled' AND (date1 = :date1 OR date2 = :date1 "
+            + ("OR date1 = :date2 OR date2 = :date2" if date2 else "") + ") FOR UPDATE"
+        ), {
+            'county_id': current.county_id,
+            'clan_id': resv_in.clan_id,
+            'date1': date1,
+            'date2': date2
+        })
+
+        # Comprehensive conflict checking
+        check_date_conflicts(db, base_filters, date1,
+                             date2, settings, clan_name)
+        check_mass_wedding_conflicts(
+            db, base_filters, date1, date2, resv_in, settings, clan_name)
+        check_cross_clan_restrictions(
+            db, base_filters, current, resv_in, target_clan, settings, date1, date2)
+        check_capacity_limits(db, base_filters, settings,
+                              date1, date2, clan_name)
+
+        # Get groom and clan info for reservation
+        groom = db.query(User).filter(User.id == current.id).first()
+        if not is_same_clan:
+            clan = target_clan
+        else:
+            clan = db.query(Clan).filter(Clan.id == current.clan_id).first()
+
+        # Create reservation with all validations passed
+        resv = Reservation(
+            groom_id=current.id,
+            clan_id=resv_in.clan_id,
+            date1=date1,
+            date2=date2,
+            date2_bool=bool(resv_in.date2_bool),
+            join_to_mass_wedding=bool(
+                resv_in.join_to_mass_wedding or resv_in.allow_others),
+            allow_others=bool(
+                resv_in.join_to_mass_wedding or resv_in.allow_others),
+            status=ReservationStatus.pending_validation,
+            payment_status=PaymentStatus.not_paid,
+            created_at=datetime.utcnow(),
+            hall_id=hall.id,
+            haia_committee_id=resv_in.haia_committee_id,
+            madaeh_committee_id=resv_in.madaeh_committee_id,
+            custom_madaeh_committee_name=resv_in.custom_madaeh_committee_name,
+            tilawa_type=resv_in.tilawa_type,
+            county_id=clan.county_id,
+
+
+
+            # Personal information
+            first_name=groom.first_name,
+            last_name=groom.last_name,
+            father_name=groom.father_name,
+            grandfather_name=groom.grandfather_name,
+            birth_date=groom.birth_date,
+            birth_address=groom.birth_address,
+            home_address=groom.home_address,
+            phone_number=groom.phone_number,
+
+            # Guardian information
+            guardian_name=groom.guardian_name,
+            guardian_home_address=groom.guardian_home_address,
+            guardian_birth_address=groom.guardian_birth_address,
+            guardian_birth_date=groom.guardian_birth_date,
+            guardian_phone=groom.guardian_phone
+        )
+
+        db.add(resv)
+        db.commit()
+        db.refresh(resv)
+        NotificationService.create_new_reservation_notification(
+            db=db,
+            reservation=resv
+        )
+
+        logger.info(
+            f"Successfully created reservation {resv.id} for groom {current.id}")
+
+        return {
+            "message": "\nتم إنشاء الحجز بنجاح",
+            "reservation_id": resv.id,
+            "pdf_url": ""  # PDF will be generated separately
+        }
+
+    except HTTPException:
+        # Re-raise HTTP exceptions as they are
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in create_reservation: {e}")
+        db.rollback()
+        raise HTTPException(500, f"خطأ غير متوقع: {str(e)}")
+###
+
+# admin make a reservation to groom
+
+
+@router.post("/{groom_id}", response_model=ReservationCreateResponse, dependencies=[Depends(clan_admin_required)])
+def create_reservation(groom_id: int, resv_in: ReservationCreate, db: Session = Depends(get_db)):
+
+    current = db.query(User).filter(
+        User.id == groom_id
+    ).first()
     try:
         # Test PDF generation capabilities on first run
         try:
