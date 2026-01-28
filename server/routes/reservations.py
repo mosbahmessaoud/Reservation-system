@@ -59,9 +59,9 @@ def validate_guardian_completeness(user: User) -> bool:
     required_fields = [
         user.guardian_name,
         user.guardian_phone,
-        # user.guardian_home_address,
-        # user.guardian_birth_address,
-        # user.guardian_birth_date
+        user.guardian_home_address,
+        user.guardian_birth_address,
+        user.guardian_birth_date
     ]
     return all(field is not None and str(field).strip() for field in required_fields)
 
@@ -283,6 +283,7 @@ def check_capacity_limits(db: Session, base_filters: List, settings: ClanSetting
 def create_reservation(resv_in: ReservationCreate, db: Session = Depends(get_db),
                        current: User = Depends(groom_required)):
 
+
     try:
         # Test PDF generation capabilities on first run
         try:
@@ -306,6 +307,7 @@ def create_reservation(resv_in: ReservationCreate, db: Session = Depends(get_db)
         if not validate_guardian_completeness(current):
             raise HTTPException(400, "معلومات ولي الأمر غير مكتملة")
 
+        # BV007-BV009: Determine target clan and validate
         is_same_clan = resv_in.clan_id == current.clan_id
         target_clan = None
 

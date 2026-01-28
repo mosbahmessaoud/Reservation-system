@@ -673,11 +673,11 @@ def change_payment_status(
 # get all special reservations
 
 
-@router.get("/special_reservations", response_model=List[ReservationSpecialOut])
-def get_special_reservations(db: Session = Depends(get_db), current: User = Depends(get_current_user)):
+@router.get("/special_reservations/{clan_id}", response_model=List[ReservationSpecialOut])
+def get_special_reservations(clan_id: int, db: Session = Depends(get_db), current: User = Depends(get_current_user)):
     special_reservations = db.query(ReservationSpecial).filter(
         ReservationSpecial.county_id == current.county_id,
-        ReservationSpecial.clan_id == current.clan_id,
+        ReservationSpecial.clan_id == clan_id,
         ReservationSpecial.status == ReservationSpecialStatus.validated,
     ).all()
     return special_reservations

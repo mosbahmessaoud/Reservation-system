@@ -174,20 +174,6 @@ class UserCreateBulkGrooms(UserBase):
     # New field to indicate SMS recipient
     sms_to_groom_phone: Optional[bool] = False
 
-    date1: date
-    date2: Optional[date] = None
-    date2_bool: Optional[bool] = False
-    allow_others: Optional[bool] = False
-    join_to_mass_wedding: Optional[bool] = False
-    clan_id: int
-    hall_id: Optional[int] = None
-    haia_committee_id: Optional[int] = None
-    madaeh_committee_id: Optional[int] = None
-    custom_madaeh_committee_name: Optional[str] = None
-    tilawa_type: Optional[str] = None
-    pdf_url: Optional[str] = None
-
-
 
 class BulkRegistrationResult(BaseModel):
     total_rows: int
