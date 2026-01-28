@@ -703,6 +703,8 @@ async def register_grooms_bulk(
             db.commit()
             db.refresh(user)
 
+            selecteed_clan_id = str(row.get('clan_id', '')).strip(
+            ) if pd.notna(row.get('clan_id')) else None,
             # Try to create reservation if date1 is provided
             reservation_created = False
             if pd.notna(row.get('date1')):
@@ -711,16 +713,16 @@ async def register_grooms_bulk(
 
                     # Check if date is already reserved
                     existing_reservation = db.query(Reservation).filter(
-                        Reservation.clan_id == clan_id,
+                        Reservation.clan_id == selecteed_clan_id,
                         Reservation.status != ReservationStatus.cancelled,
                         or_(Reservation.date1 == date1,
                             Reservation.date2 == date1)
                     ).first()
 
                     existing_reservation_special = db.query(ReservationSpecial).filter(
-                        ReservationSpecial.clan_id == clan_id,
+                        ReservationSpecial.clan_id == selecteed_clan_id,
                         ReservationSpecial.status != ReservationSpecialStatus.cancelled,
-                        ReservationSpecial.date1 == date1,
+                        ReservationSpecial.date == date1,
                     ).first()
 
                     if existing_reservation or existing_reservation_special:
@@ -734,7 +736,7 @@ async def register_grooms_bulk(
                     else:
                         # Get hall
                         hall = db.query(Hall).filter(
-                            Hall.clan_id == clan_id).first()
+                            Hall.clan_id == selecteed_clan_id).first()
                         if hall:
                             reservation = Reservation(
                                 groom_id=user.id,
