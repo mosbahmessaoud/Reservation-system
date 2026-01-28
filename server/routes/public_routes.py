@@ -62,7 +62,7 @@ def get_clans_by_county(county_id: int, db: Session = Depends(get_db)):
         joinedload(Clan.county)
     ).filter(
         Clan.county_id == county_id
-    ).all()
+    ).order_by(Clan.id).all()
 
     if not clans:
         raise HTTPException(
