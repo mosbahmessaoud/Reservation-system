@@ -3,6 +3,8 @@
 from server.auth_utils import verify_access_password
 from server.models.hall import Hall
 from server.models.reservation import PaymentStatus, Reservation, ReservationStatus
+from server.models.reservation_clan_admin import ReservationSpecial
+from server.schemas.reservations_special import ReservationSpecialStatus
 from server.schemas.user import AccessPasswordVerify, BulkRegisterResponse, UserCreateBulkGrooms
 from fastapi import APIRouter, Body, Depends, HTTPException, logger, status, UploadFile, File
 from pydantic import BaseModel
@@ -616,9 +618,9 @@ async def register_grooms_bulk(
                     User.guardian_phone == phone_number)
             ).first()
 
-            if existing_user and has_reservation(db, existing_user.id):
+            if existing_user and (has_reservation(db, existing_user.id) or existing_user.role != UserRole.groom):
                 details.append({"row": row_num, "phone": phone_number,
-                               "status": "skipped", "reason": "المستخدم موجود ولديه حجز"})
+                               "status": "skipped", "reason": "المستخدم موجود "})
                 skipped += 1
                 continue
 
@@ -633,7 +635,7 @@ async def register_grooms_bulk(
                     or_(User.guardian_phone == guardian_phone,
                         User.phone_number == guardian_phone)
                 ).first()
-                if existing_guardian and has_reservation(db, existing_guardian.id):
+                if existing_guardian and (has_reservation(db, existing_user.id) or existing_user.role != UserRole.groom):
                     details.append({"row": row_num, "phone": phone_number,
                                    "status": "skipped", "reason": "رقم الولي موجود ولديه حجز"})
                     skipped += 1
@@ -715,7 +717,13 @@ async def register_grooms_bulk(
                             Reservation.date2 == date1)
                     ).first()
 
-                    if existing_reservation:
+                    existing_reservation_special = db.query(ReservationSpecial).filter(
+                        ReservationSpecial.clan_id == clan_id,
+                        ReservationSpecial.status != ReservationSpecialStatus.cancelled,
+                        ReservationSpecial.date1 == date1,
+                    ).first()
+
+                    if existing_reservation or existing_reservation_special:
                         details.append({
                             "row": row_num,
                             "phone": phone_number,
