@@ -403,16 +403,22 @@ def register_groom(user_in: UserCreateBulkGrooms, db: Session = Depends(get_db))
         or_(User.phone_number == user_in.phone_number,
             User.guardian_phone == user_in.phone_number),
     ).first()
-
     if existing_user:
         if has_reservation(db, existing_user.id):
-            return {"exists": True, "message": f". رقم هاتف العريس {user_in.phone_number} موجود بالفعل ويوجد فيه حجز \n اذا نسيت كلمة المرور، يرجى استخدام خاصية «نسيت كلمة المرور»  "}
+            raise HTTPException(
+                status_code=400,
+                detail=f". رقم هاتف العريس {user_in.phone_number} موجود بالفعل ويوجد فيه حجز \n اذا نسيت كلمة المرور، يرجى استخدام خاصية «نسيت كلمة المرور»"
+            )
         elif existing_user.role == UserRole.clan_admin:
-            return {"exists": True, "message": f"رقم هاتف العريس {user_in.phone_number} مرتبط بحساب اخر يرجى تغير رقم الهاتف ."}
-
+            raise HTTPException(
+                status_code=400,
+                detail=f"رقم هاتف العريس {user_in.phone_number} مرتبط بحساب اخر يرجى تغير رقم الهاتف"
+            )
         elif existing_user.role == UserRole.super_admin:
-            return {"exists": True, "message": f"رقم هاتف العريس {user_in.phone_number} مرتبط بحساب اخر يرجى تغير رقم الهاتف "}
-
+            raise HTTPException(
+                status_code=400,
+                detail=f"رقم هاتف العريس {user_in.phone_number} مرتبط بحساب اخر يرجى تغير رقم الهاتف"
+            )
         else:
             db.delete(existing_user)
             db.commit()
@@ -423,16 +429,25 @@ def register_groom(user_in: UserCreateBulkGrooms, db: Session = Depends(get_db))
                            User.phone_number == user_in.guardian_phone),
 
         ).first()
-
-        if existing_user_by_guardian_phone and has_reservation(db, existing_user_by_guardian_phone.id):
-            return {"exists": True, "message": f"رقم هاتف الولي {user_in.guardian_phone} موجود بالفعل. ويوجد فيه حجز \n اذا نسيت كلمة المرور، يرجى استخدام خاصية «نسيت كلمة المرور»."}
-        elif existing_user and existing_user.role == UserRole.clan_admin:
-            return {"exists": True, "message": f"رقم هاتف الولي {user_in.guardian_phone} مرتبط بحساب اخر يرجى تغير رقم الهاتف ."}
-        elif existing_user and existing_user.role == UserRole.super_admin:
-            return {"exists": True, "message": f"رقم هاتف الولي {user_in.guardian_phone} مرتبط بحساب اخر يرجى تغير رقم الهاتف "}
-        else:
-            db.delete(existing_user_by_guardian_phone)
-            db.commit()
+        if existing_user_by_guardian_phone:
+            if has_reservation(db, existing_user_by_guardian_phone.id):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"رقم هاتف الولي {user_in.guardian_phone} موجود بالفعل. ويوجد فيه حجز \n اذا نسيت كلمة المرور، يرجى استخدام خاصية «نسيت كلمة المرور»"
+                )
+            elif existing_user_by_guardian_phone.role == UserRole.clan_admin:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"رقم هاتف الولي {user_in.guardian_phone} مرتبط بحساب اخر يرجى تغير رقم الهاتف"
+                )
+            elif existing_user_by_guardian_phone.role == UserRole.super_admin:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"رقم هاتف الولي {user_in.guardian_phone} مرتبط بحساب اخر يرجى تغير رقم الهاتف"
+                )
+            else:
+                db.delete(existing_user_by_guardian_phone)
+                db.commit()
 
     clan = db.query(Clan).filter(Clan.id == user_in.clan_id).first()
     if not clan:
