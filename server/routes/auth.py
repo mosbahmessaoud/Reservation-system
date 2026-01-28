@@ -1,7 +1,8 @@
 
 # server\routes\auth.py
 from server.auth_utils import verify_access_password
-from server.models.reservation import Reservation, ReservationStatus
+from server.models.hall import Hall
+from server.models.reservation import PaymentStatus, Reservation, ReservationStatus
 from server.schemas.user import AccessPasswordVerify, BulkRegisterResponse, UserCreateBulkGrooms
 from fastapi import APIRouter, Body, Depends, HTTPException, logger, status, UploadFile, File
 from pydantic import BaseModel
