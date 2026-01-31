@@ -270,6 +270,7 @@ async def check_clan_admin_status(
     is_active = clan_admin.status == UserStatus.active
 
     return {
+        "id": clan_admin.id,
         "has_admin": True,
         "is_active": is_active,
         "admin_name": f"{clan_admin.first_name} {clan_admin.last_name}",
