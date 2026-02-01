@@ -166,11 +166,11 @@ def login(
         )
 
     # Check if user status is active
-    if user.status != UserStatus.active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="حسابك غير نشط. يرجى مراجعة مدير العشيرة للحصول على المساعدة."
-        )
+    # if user.status != UserStatus.active:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="حسابك غير نشط. يرجى مراجعة مدير العشيرة للحصول على المساعدة."
+    #     )
 
     if not user.access_pages_password_hash and user.role == UserRole.groom:
         access_pages_password = "تعشيرت"
