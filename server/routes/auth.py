@@ -10,7 +10,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, logger, status, Upl
 from pydantic import BaseModel
 import sqlalchemy
 import sqlalchemy.orm
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import joinedload
 from server.models.user import User, UserRole, UserStatus
@@ -600,11 +600,11 @@ async def register_grooms_bulk(
     for index, row in df.iterrows():
         row_num = index + 2
         try:
-            # Extract phone numbers
-            phone_number = str(row.get('phone_number', '')).strip(
-            ) if pd.notna(row.get('phone_number')) else None
-            guardian_phone = str(row.get('guardian_phone', '')).strip(
-            ) if pd.notna(row.get('guardian_phone')) else None
+            # Extract phone numbers - handle both Arabic and English column names
+            phone_number = str(row.get('رقم هاتف العريس', row.get('phone_number', ''))).strip(
+            ) if pd.notna(row.get('رقم هاتف العريس', row.get('phone_number'))) else None
+            guardian_phone = str(row.get('رقم هاتف الولي', row.get('guardian_phone', ''))).strip(
+            ) if pd.notna(row.get('رقم هاتف الولي', row.get('guardian_phone'))) else None
 
             if not phone_number:
                 details.append({"row": row_num, "status": "failed",
@@ -618,37 +618,65 @@ async def register_grooms_bulk(
                     User.guardian_phone == phone_number)
             ).first()
 
-            if existing_user and (has_reservation(db, existing_user.id) or existing_user.role != UserRole.groom):
-                details.append({"row": row_num, "phone": phone_number,
-                               "status": "skipped", "reason": "المستخدم موجود "})
-                skipped += 1
-                continue
-
-            # Delete unverified existing users
             if existing_user:
-                db.delete(existing_user)
-                db.commit()
+                if has_reservation(db, existing_user.id):
+                    details.append({"row": row_num, "phone": phone_number,
+                                   "status": "skipped", "reason": "المستخدم موجود ولديه حجز"})
+                    skipped += 1
+                    continue
+                elif existing_user.role == UserRole.clan_admin:
+                    details.append({"row": row_num, "phone": phone_number,
+                                   "status": "skipped", "reason": "رقم الهاتف مرتبط بحساب مدير عشيرة"})
+                    skipped += 1
+                    continue
+                elif existing_user.role == UserRole.super_admin:
+                    details.append({"row": row_num, "phone": phone_number,
+                                   "status": "skipped", "reason": "رقم الهاتف مرتبط بحساب المسؤول الأعلى"})
+                    skipped += 1
+                    continue
+                else:
+                    # Delete unverified existing users without reservations
+                    db.delete(existing_user)
+                    db.commit()
 
-            # Check guardian phone
+            # Check guardian phone if provided
             if guardian_phone:
                 existing_guardian = db.query(User).filter(
                     or_(User.guardian_phone == guardian_phone,
                         User.phone_number == guardian_phone)
                 ).first()
-                if existing_guardian and (has_reservation(db, existing_user.id) or existing_user.role != UserRole.groom):
-                    details.append({"row": row_num, "phone": phone_number,
-                                   "status": "skipped", "reason": "رقم الولي موجود ولديه حجز"})
-                    skipped += 1
-                    continue
-                if existing_guardian:
-                    db.delete(existing_guardian)
-                    db.commit()
 
-            # Get clan and county
-            clan_id = int(row.get('clan_id', current_admin.clan_id)) if pd.notna(
-                row.get('clan_id')) else current_admin.clan_id
-            county_id = int(row.get('county_id', current_admin.county_id)) if pd.notna(
-                row.get('county_id')) else current_admin.county_id
+                if existing_guardian:
+                    if has_reservation(db, existing_guardian.id):
+                        details.append({"row": row_num, "phone": phone_number,
+                                       "status": "skipped", "reason": "رقم هاتف الولي موجود ولديه حجز"})
+                        skipped += 1
+                        continue
+                    elif existing_guardian.role == UserRole.clan_admin:
+                        details.append({"row": row_num, "phone": phone_number,
+                                       "status": "skipped", "reason": "رقم هاتف الولي مرتبط بحساب مدير عشيرة"})
+                        skipped += 1
+                        continue
+                    elif existing_guardian.role == UserRole.super_admin:
+                        details.append({"row": row_num, "phone": phone_number,
+                                       "status": "skipped", "reason": "رقم هاتف الولي مرتبط بحساب المسؤول الأعلى"})
+                        skipped += 1
+                        continue
+                    else:
+                        db.delete(existing_guardian)
+                        db.commit()
+
+            # Get clan and county - support both Arabic and English column names
+            clan_id_value = row.get(
+                ' العشيرة التي ينتمي إليها', row.get('clan_id'))
+            # county_id_value = row.get(' المحافظة', row.get('county_id'))
+
+            clan_id = int(clan_id_value) if pd.notna(
+                clan_id_value) else current_admin.clan_id
+            # county_id = int(county_id_value) if pd.notna(
+            #     county_id_value) else current_admin.county_id
+
+            county_id = current_admin.county_id
 
             clan = db.query(Clan).filter(Clan.id == clan_id).first()
             if not clan:
@@ -657,11 +685,69 @@ async def register_grooms_bulk(
                 failed += 1
                 continue
 
-            # Parse dates
-            birth_date = pd.to_datetime(row['birth_date']).date(
-            ) if pd.notna(row.get('birth_date')) else None
-            guardian_birth_date = pd.to_datetime(row['guardian_birth_date']).date(
-            ) if pd.notna(row.get('guardian_birth_date')) else None
+            county = db.query(County).filter(County.id == county_id).first()
+            if not county:
+                details.append({"row": row_num, "phone": phone_number,
+                               "status": "failed", "reason": f"المحافظة {county_id} غير موجودة"})
+                failed += 1
+                continue
+
+            if clan.county_id != county.id:
+                details.append({"row": row_num, "phone": phone_number,
+                               "status": "failed", "reason": "العشيرة لا تنتمي إلى هذه المحافظة"})
+                failed += 1
+                continue
+
+            # Parse dates - support both Arabic and English column names
+            birth_date_value = row.get(
+                'تاريخ الميلاد العريس', row.get('birth_date'))
+            birth_date = pd.to_datetime(birth_date_value).date(
+            ) if pd.notna(birth_date_value) else None
+
+            guardian_birth_date_value = row.get(
+                'تاريخ ميلاد الولي', row.get('guardian_birth_date'))
+            guardian_birth_date = pd.to_datetime(guardian_birth_date_value).date(
+            ) if pd.notna(guardian_birth_date_value) else None
+
+            # Extract all user fields - support both Arabic and English column names
+            first_name = str(row.get('إسم العريس', row.get(
+                'first_name', 'غير محدد'))).strip()
+            last_name = str(row.get('اللقب', row.get(
+                'last_name', 'غير محدد'))).strip()
+            father_name = str(row.get('اسم الأب', row.get(
+                'father_name', 'غير محدد'))).strip()
+            grandfather_name = str(row.get('اسم الجد', row.get(
+                'grandfather_name', 'غير محدد'))).strip()
+
+            birth_address_value = row.get(
+                'مكان الميلاد العريس', row.get('birth_address'))
+            birth_address = str(birth_address_value).strip(
+            ) if pd.notna(birth_address_value) else None
+
+            home_address_value = row.get(
+                'عنوان السكن للعريس', row.get('home_address'))
+            home_address = str(home_address_value).strip(
+            ) if pd.notna(home_address_value) else None
+
+            guardian_name_value = row.get(
+                'اسم الولي', row.get('guardian_name'))
+            guardian_name = str(guardian_name_value).strip(
+            ) if pd.notna(guardian_name_value) else None
+
+            guardian_home_address_value = row.get(
+                'عنوان سكن الولي', row.get('guardian_home_address'))
+            guardian_home_address = str(guardian_home_address_value).strip(
+            ) if pd.notna(guardian_home_address_value) else None
+
+            guardian_birth_address_value = row.get(
+                'مكان ميلاد الولي', row.get('guardian_birth_address'))
+            guardian_birth_address = str(guardian_birth_address_value).strip(
+            ) if pd.notna(guardian_birth_address_value) else None
+
+            guardian_relation_value = row.get(
+                'صلة القرابة بالولي', row.get('guardian_relation'))
+            guardian_relation = str(guardian_relation_value).strip(
+            ) if pd.notna(guardian_relation_value) else None
 
             # Create user
             hashed_password = auth_utils.get_password_hash(phone_number)
@@ -673,28 +759,21 @@ async def register_grooms_bulk(
                 access_pages_password_hash=hashed_access_password,
                 role=UserRole.groom,
                 phone_verified=True,
-                first_name=str(row.get('first_name', 'غير محدد')).strip(),
-                last_name=str(row.get('last_name', 'غير محدد')).strip(),
-                father_name=str(row.get('father_name', 'غير محدد')).strip(),
-                grandfather_name=str(
-                    row.get('grandfather_name', 'غير محدد')).strip(),
+                first_name=first_name,
+                last_name=last_name,
+                father_name=father_name,
+                grandfather_name=grandfather_name,
                 birth_date=birth_date,
-                birth_address=str(row.get('birth_address', '')).strip(
-                ) if pd.notna(row.get('birth_address')) else None,
-                home_address=str(row.get('home_address', '')).strip(
-                ) if pd.notna(row.get('home_address')) else None,
+                birth_address=birth_address,
+                home_address=home_address,
                 clan_id=clan_id,
                 county_id=county_id,
-                guardian_name=str(row.get('guardian_name', '')).strip(
-                ) if pd.notna(row.get('guardian_name')) else None,
+                guardian_name=guardian_name,
                 guardian_phone=guardian_phone,
-                guardian_home_address=str(row.get('guardian_home_address', '')).strip(
-                ) if pd.notna(row.get('guardian_home_address')) else None,
-                guardian_birth_address=str(row.get('guardian_birth_address', '')).strip(
-                ) if pd.notna(row.get('guardian_birth_address')) else None,
+                guardian_home_address=guardian_home_address,
+                guardian_birth_address=guardian_birth_address,
                 guardian_birth_date=guardian_birth_date,
-                guardian_relation=str(row.get('guardian_relation', '')).strip(
-                ) if pd.notna(row.get('guardian_relation')) else None,
+                guardian_relation=guardian_relation,
                 created_at=datetime.utcnow(),
                 status=UserStatus.active,
             )
@@ -703,76 +782,179 @@ async def register_grooms_bulk(
             db.commit()
             db.refresh(user)
 
-            selecteed_clan_id = str(row.get('clan_id', '')).strip(
-            ) if pd.notna(row.get('clan_id')) else None,
             # Try to create reservation if date1 is provided
             reservation_created = False
-            if pd.notna(row.get('date1')):
+            date1_value = row.get('تاريخ الحجز', row.get('date1'))
+
+            if pd.notna(date1_value):
                 try:
-                    date1 = pd.to_datetime(row['date1']).date()
+                    date1 = pd.to_datetime(date1_value).date()
 
-                    # Check if date is already reserved
-                    existing_reservation = db.query(Reservation).filter(
-                        Reservation.clan_id == selecteed_clan_id,
-                        Reservation.status != ReservationStatus.cancelled,
-                        or_(Reservation.date1 == date1,
-                            Reservation.date2 == date1)
-                    ).first()
-
-                    existing_reservation_special = db.query(ReservationSpecial).filter(
-                        ReservationSpecial.clan_id == selecteed_clan_id,
-                        ReservationSpecial.status != ReservationSpecialStatus.cancelled,
-                        ReservationSpecial.date == date1,
-                    ).first()
-
-                    if existing_reservation or existing_reservation_special:
+                    # Validate date is not in the past
+                    if date1 < date.today():
                         details.append({
                             "row": row_num,
                             "phone": phone_number,
                             "status": "success",
                             "name": f"{user.first_name} {user.last_name}",
-                            "reason": "تم إنشاء المستخدم، لكن التاريخ محجوز"
+                            "reason": "تم إنشاء المستخدم، لكن التاريخ في الماضي"
                         })
                     else:
-                        # Get hall
-                        hall = db.query(Hall).filter(
-                            Hall.clan_id == selecteed_clan_id).first()
-                        if hall:
+                        # Check if date is already reserved
+                        existing_reservation = db.query(Reservation).filter(
+                            Reservation.clan_id == clan_id,
+                            Reservation.county_id == county_id,
+                            Reservation.status != ReservationStatus.cancelled,
+                            or_(Reservation.date1 == date1,
+                                Reservation.date2 == date1)
+                        ).first()
+
+                        existing_reservation_special = db.query(ReservationSpecial).filter(
+                            ReservationSpecial.clan_id == clan_id,
+                            ReservationSpecial.county_id == county_id,
+                            ReservationSpecial.status != ReservationSpecialStatus.cancelled,
+                            ReservationSpecial.date == date1,
+                        ).first()
+
+                        if existing_reservation or existing_reservation_special:
+                            details.append({
+                                "row": row_num,
+                                "phone": phone_number,
+                                "status": "success",
+                                "name": f"{user.first_name} {user.last_name}",
+                                "reason": "تم إنشاء المستخدم، لكن التاريخ محجوز"
+                            })
+                        else:
+
+                            # Extract allow_others value - support both Arabic and English
+                            allow_others_value = row.get(
+                                'السماح للآخرين بالانضمام', row.get('allow_others'))
+
+                            # Convert to boolean - handle various input formats
+                            allow_others = False  # Default value
+                            if pd.notna(allow_others_value):
+                                str_value = str(
+                                    allow_others_value).strip().upper()
+                                if str_value in ('TRUE', 'نعم'):
+                                    allow_others = True
+                                elif str_value in ('FALSE', 'لا'):
+                                    allow_others = False
+
+                            # Get clan and county - support both Arabic and English column names
+                            clan_id_value_selected = row.get(
+                                '  العشيرة التي يقيم فيها العرس', row.get('clan_id'))
+                            # county_id_value = row.get(' المحافظة', row.get('county_id'))
+
+                            clan_id_selected = int(clan_id_value_selected) if pd.notna(
+                                clan_id_value_selected) else current_admin.clan_id
+                            # county_id = int(county_id_value) if pd.notna(
+                            #     county_id_value) else current_admin.county_id
+
+                            county_id = current_admin.county_id
+                            # # Get hall - use specified hall_id or default hall
+                            # hall_id_value = row.get(
+                            #     'معرف القاعة', row.get('hall_id'))
+                            # hall_id = int(hall_id_value) if pd.notna(
+                            #     hall_id_value) else None
+
+                            # if hall_id:
+                            #     hall = db.query(Hall).filter(
+                            #         Hall.id == hall_id,
+                            #         Hall.clan_id == clan_id
+                            #     ).first()
+                            # else:
+                            #     hall = db.query(Hall).filter(
+                            #         Hall.clan_id == clan_id
+                            #     ).first()
+
+                            # if hall:
+                            # Get committee IDs - support both Arabic and English
+                            haia_committee_id_value = row.get(
+                                'الهيئة الدينية', row.get('haia_committee_id'))
+                            haia_committee_id = int(haia_committee_id_value) if pd.notna(
+                                haia_committee_id_value) else None
+
+                            madaeh_committee_id_value = row.get(
+                                'لجنة المدائح', row.get('madaeh_committee_id'))
+                            madaeh_committee_id = int(madaeh_committee_id_value) if pd.notna(
+                                madaeh_committee_id_value) else None
+
+                            custom_madaeh_committee_name_value = row.get(
+                                'اسم لجنة مداح مخصصة', row.get('custom_madaeh_committee_name'))
+                            custom_madaeh_committee_name = str(custom_madaeh_committee_name_value).strip(
+                            ) if pd.notna(custom_madaeh_committee_name_value) else None
+
+                            tilawa_type_value = row.get(
+                                'نوع التلاوة', row.get('tilawa_type'))
+                            tilawa_type = str(tilawa_type_value).strip(
+                            ) if pd.notna(tilawa_type_value) else None
+
                             reservation = Reservation(
                                 groom_id=user.id,
-                                clan_id=clan_id,
+                                clan_id=clan_id_selected,
                                 county_id=county_id,
-                                hall_id=hall.id,
+                                hall_id=clan_id_selected,
                                 date1=date1,
+
+                                allow_others=allow_others,              # NEW LINE
+                                join_to_mass_wedding=allow_others,      # NEW LINE
                                 status=ReservationStatus.pending_validation,
                                 payment_status=PaymentStatus.not_paid,
+                                haia_committee_id=haia_committee_id,
+                                madaeh_committee_id=madaeh_committee_id,
+                                custom_madaeh_committee_name=custom_madaeh_committee_name,
+                                tilawa_type=tilawa_type,
                                 first_name=user.first_name,
                                 last_name=user.last_name,
                                 father_name=user.father_name,
                                 grandfather_name=user.grandfather_name,
+                                birth_date=user.birth_date,
+                                birth_address=user.birth_address,
+                                home_address=user.home_address,
                                 phone_number=user.phone_number,
                                 guardian_name=user.guardian_name,
                                 guardian_phone=user.guardian_phone,
+                                guardian_home_address=user.guardian_home_address,
+                                guardian_birth_address=user.guardian_birth_address,
+                                guardian_birth_date=user.guardian_birth_date,
                                 created_at=datetime.utcnow()
                             )
                             db.add(reservation)
                             db.commit()
                             reservation_created = True
+                            # else:
+                            #     details.append({
+                            #         "row": row_num,
+                            #         "phone": phone_number,
+                            #         "status": "success",
+                            #         "name": f"{user.first_name} {user.last_name}",
+                            #         "reason": "تم إنشاء المستخدم، لكن لا توجد قاعة متاحة"
+                            #     })
                 except Exception as e:
-                    print(
+                    logger.error(
                         f"Reservation creation failed for row {row_num}: {e}")
+                    details.append({
+                        "row": row_num,
+                        "phone": phone_number,
+                        "status": "success",
+                        "name": f"{user.first_name} {user.last_name}",
+                        "reason": f"تم إنشاء المستخدم، لكن فشل إنشاء الحجز: {str(e)}"
+                    })
 
-            details.append({
-                "row": row_num,
-                "phone": phone_number,
-                "status": "success",
-                "name": f"{user.first_name} {user.last_name}",
-                "reason": "مع حجز" if reservation_created else None
-            })
+            if not details or details[-1].get("row") != row_num:
+                details.append({
+                    "row": row_num,
+                    "phone": phone_number,
+                    "status": "success",
+                    "name": f"{user.first_name} {user.last_name}",
+                    "reason": "مع حجز" if reservation_created else None
+                })
+
             successful += 1
 
         except Exception as e:
             db.rollback()
+            logger.error(f"Error processing row {row_num}: {e}")
             details.append({
                 "row": row_num,
                 "phone": phone_number if 'phone_number' in locals() else 'غير معروف',
@@ -792,6 +974,227 @@ async def register_grooms_bulk(
             "details": details
         }
     }
+# @router.post("/RegisterBulk/GroomsFromExcel", response_model=BulkRegisterResponse, dependencies=[Depends(clan_admin_required)])
+# async def register_grooms_bulk(
+#     file: UploadFile = File(...),
+#     db: Session = Depends(get_db),
+#     current_admin: User = Depends(clan_admin_required)
+# ):
+#     """Bulk register grooms from Excel with optional reservations"""
+
+#     if not file.filename.endswith(('.xlsx', '.xls')):
+#         raise HTTPException(
+#             status_code=400, detail="يجب أن يكون الملف من نوع Excel")
+
+#     try:
+#         contents = await file.read()
+#         df = pd.read_excel(BytesIO(contents))
+#         df = df.where(pd.notna(df), None)
+#     except Exception as e:
+#         raise HTTPException(
+#             status_code=400, detail=f"فشل قراءة ملف Excel: {str(e)}")
+
+#     total_rows = len(df)
+#     successful = 0
+#     skipped = 0
+#     failed = 0
+#     details = []
+
+#     for index, row in df.iterrows():
+#         row_num = index + 2
+#         try:
+#             # Extract phone numbers
+#             phone_number = str(row.get('phone_number', '')).strip(
+#             ) if pd.notna(row.get('phone_number')) else None
+#             guardian_phone = str(row.get('guardian_phone', '')).strip(
+#             ) if pd.notna(row.get('guardian_phone')) else None
+
+#             if not phone_number:
+#                 details.append({"row": row_num, "status": "failed",
+#                                "reason": "رقم هاتف العريس مفقود"})
+#                 failed += 1
+#                 continue
+
+#             # Check existing users
+#             existing_user = db.query(User).filter(
+#                 or_(User.phone_number == phone_number,
+#                     User.guardian_phone == phone_number)
+#             ).first()
+
+#             if existing_user and (has_reservation(db, existing_user.id) or existing_user.role != UserRole.groom):
+#                 details.append({"row": row_num, "phone": phone_number,
+#                                "status": "skipped", "reason": "المستخدم موجود "})
+#                 skipped += 1
+#                 continue
+
+#             # Delete unverified existing users
+#             if existing_user:
+#                 db.delete(existing_user)
+#                 db.commit()
+
+#             # Check guardian phone
+#             if guardian_phone:
+#                 existing_guardian = db.query(User).filter(
+#                     or_(User.guardian_phone == guardian_phone,
+#                         User.phone_number == guardian_phone)
+#                 ).first()
+#                 if existing_guardian and (has_reservation(db, existing_user.id) or existing_user.role != UserRole.groom):
+#                     details.append({"row": row_num, "phone": phone_number,
+#                                    "status": "skipped", "reason": "رقم الولي موجود ولديه حجز"})
+#                     skipped += 1
+#                     continue
+#                 if existing_guardian:
+#                     db.delete(existing_guardian)
+#                     db.commit()
+
+#             # Get clan and county
+#             clan_id = int(row.get('clan_id', current_admin.clan_id)) if pd.notna(
+#                 row.get('clan_id')) else current_admin.clan_id
+#             county_id = int(row.get('county_id', current_admin.county_id)) if pd.notna(
+#                 row.get('county_id')) else current_admin.county_id
+
+#             clan = db.query(Clan).filter(Clan.id == clan_id).first()
+#             if not clan:
+#                 details.append({"row": row_num, "phone": phone_number,
+#                                "status": "failed", "reason": f"العشيرة {clan_id} غير موجودة"})
+#                 failed += 1
+#                 continue
+
+#             # Parse dates
+#             birth_date = pd.to_datetime(row['birth_date']).date(
+#             ) if pd.notna(row.get('birth_date')) else None
+#             guardian_birth_date = pd.to_datetime(row['guardian_birth_date']).date(
+#             ) if pd.notna(row.get('guardian_birth_date')) else None
+
+#             # Create user
+#             hashed_password = auth_utils.get_password_hash(phone_number)
+#             hashed_access_password = auth_utils.get_password_hash("تعشيرت")
+
+#             user = User(
+#                 phone_number=phone_number,
+#                 password_hash=hashed_password,
+#                 access_pages_password_hash=hashed_access_password,
+#                 role=UserRole.groom,
+#                 phone_verified=True,
+#                 first_name=str(row.get('first_name', 'غير محدد')).strip(),
+#                 last_name=str(row.get('last_name', 'غير محدد')).strip(),
+#                 father_name=str(row.get('father_name', 'غير محدد')).strip(),
+#                 grandfather_name=str(
+#                     row.get('grandfather_name', 'غير محدد')).strip(),
+#                 birth_date=birth_date,
+#                 birth_address=str(row.get('birth_address', '')).strip(
+#                 ) if pd.notna(row.get('birth_address')) else None,
+#                 home_address=str(row.get('home_address', '')).strip(
+#                 ) if pd.notna(row.get('home_address')) else None,
+#                 clan_id=clan_id,
+#                 county_id=county_id,
+#                 guardian_name=str(row.get('guardian_name', '')).strip(
+#                 ) if pd.notna(row.get('guardian_name')) else None,
+#                 guardian_phone=guardian_phone,
+#                 guardian_home_address=str(row.get('guardian_home_address', '')).strip(
+#                 ) if pd.notna(row.get('guardian_home_address')) else None,
+#                 guardian_birth_address=str(row.get('guardian_birth_address', '')).strip(
+#                 ) if pd.notna(row.get('guardian_birth_address')) else None,
+#                 guardian_birth_date=guardian_birth_date,
+#                 guardian_relation=str(row.get('guardian_relation', '')).strip(
+#                 ) if pd.notna(row.get('guardian_relation')) else None,
+#                 created_at=datetime.utcnow(),
+#                 status=UserStatus.active,
+#             )
+
+#             db.add(user)
+#             db.commit()
+#             db.refresh(user)
+
+#             selecteed_clan_id = str(row.get('clan_id', '')).strip(
+#             ) if pd.notna(row.get('clan_id')) else None,
+#             # Try to create reservation if date1 is provided
+#             reservation_created = False
+#             if pd.notna(row.get('date1')):
+#                 try:
+#                     date1 = pd.to_datetime(row['date1']).date()
+
+#                     # Check if date is already reserved
+#                     existing_reservation = db.query(Reservation).filter(
+#                         Reservation.clan_id == selecteed_clan_id,
+#                         Reservation.status != ReservationStatus.cancelled,
+#                         or_(Reservation.date1 == date1,
+#                             Reservation.date2 == date1)
+#                     ).first()
+
+#                     existing_reservation_special = db.query(ReservationSpecial).filter(
+#                         ReservationSpecial.clan_id == selecteed_clan_id,
+#                         ReservationSpecial.status != ReservationSpecialStatus.cancelled,
+#                         ReservationSpecial.date == date1,
+#                     ).first()
+
+#                     if existing_reservation or existing_reservation_special:
+#                         details.append({
+#                             "row": row_num,
+#                             "phone": phone_number,
+#                             "status": "success",
+#                             "name": f"{user.first_name} {user.last_name}",
+#                             "reason": "تم إنشاء المستخدم، لكن التاريخ محجوز"
+#                         })
+#                     else:
+#                         # Get hall
+#                         hall = db.query(Hall).filter(
+#                             Hall.clan_id == selecteed_clan_id).first()
+#                         if hall:
+#                             reservation = Reservation(
+#                                 groom_id=user.id,
+#                                 clan_id=clan_id,
+#                                 county_id=county_id,
+#                                 hall_id=hall.id,
+#                                 date1=date1,
+#                                 status=ReservationStatus.pending_validation,
+#                                 payment_status=PaymentStatus.not_paid,
+#                                 first_name=user.first_name,
+#                                 last_name=user.last_name,
+#                                 father_name=user.father_name,
+#                                 grandfather_name=user.grandfather_name,
+#                                 phone_number=user.phone_number,
+#                                 guardian_name=user.guardian_name,
+#                                 guardian_phone=user.guardian_phone,
+#                                 created_at=datetime.utcnow()
+#                             )
+#                             db.add(reservation)
+#                             db.commit()
+#                             reservation_created = True
+#                 except Exception as e:
+#                     print(
+#                         f"Reservation creation failed for row {row_num}: {e}")
+
+#             details.append({
+#                 "row": row_num,
+#                 "phone": phone_number,
+#                 "status": "success",
+#                 "name": f"{user.first_name} {user.last_name}",
+#                 "reason": "مع حجز" if reservation_created else None
+#             })
+#             successful += 1
+
+#         except Exception as e:
+#             db.rollback()
+#             details.append({
+#                 "row": row_num,
+#                 "phone": phone_number if 'phone_number' in locals() else 'غير معروف',
+#                 "status": "failed",
+#                 "reason": str(e)
+#             })
+#             failed += 1
+#             continue
+
+#     return {
+#         "message": f"تم معالجة {total_rows} صف: {successful} نجح، {skipped} تم تخطيه، {failed} فشل",
+#         "result": {
+#             "total_rows": total_rows,
+#             "successful": successful,
+#             "skipped": skipped,
+#             "failed": failed,
+#             "details": details
+#         }
+#     }
 
 
 @router.post("/verify-phone")
