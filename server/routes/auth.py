@@ -1,6 +1,7 @@
 
 # server\routes\auth.py
 from server.auth_utils import verify_access_password
+from server.models.clan_settings import ClanSettings
 from server.models.hall import Hall
 from server.models.reservation import PaymentStatus, Reservation, ReservationStatus
 from server.models.reservation_clan_admin import ReservationSpecial
@@ -846,6 +847,7 @@ async def register_grooms_bulk(
                             "reason": "تم إنشاء المستخدم، لكن التاريخ في الماضي"
                         })
                     else:
+                        existing_rese = False
                         existing_reservation = db.query(Reservation).filter(
                             Reservation.clan_id == clan_id,
                             Reservation.county_id == county_id,
@@ -853,6 +855,20 @@ async def register_grooms_bulk(
                             or_(Reservation.date1 == date1,
                                 Reservation.date2 == date1)
                         ).first()
+                        if existing_reservation :
+                            check_mass_wedding = db.query(Reservation).filter(
+                                Reservation.id == existing_reservation.id,
+                                Reservation.status != ReservationStatus.cancelled,
+                                Reservation.allow_others == True,
+                            ).all()
+                            clan_seting = db.query(ClanSettings).filter(
+                                ClanSettings.clan_id == existing_reservation.clan_id,
+                                
+                            ).first()
+                            
+                            if check_mass_wedding > clan_seting.max_grooms_per_date:
+                                existing_rese = True 
+                            
 
                         existing_reservation_special = db.query(ReservationSpecial).filter(
                             ReservationSpecial.clan_id == clan_id,
@@ -861,7 +877,7 @@ async def register_grooms_bulk(
                             ReservationSpecial.date == date1,
                         ).first()
 
-                        if existing_reservation or existing_reservation_special:
+                        if existing_rese or existing_reservation_special:
                             details.append({
                                 "row": row_num,
                                 "phone": phone_number,

@@ -251,9 +251,7 @@ def generate_wedding_pdf(reservation, output_dir: str, db):
 
         # ============ FIXED SECTION ============
         # Safely build guardian full name - handle None values
-        guardian_first = user_of_this_reservation.guardian_name or ""
-        GUARDIAN_full_NAME = f"{guardian_first}".strip(
-        ) or "................"
+        GUARDIAN_full_NAME = user_of_this_reservation.guardian_name or ""
 
         # Set wakil name and phone with proper None handling
         wakil_full_NAME = user_of_this_reservation.wakil_full_name or GUARDIAN_full_NAME
@@ -274,7 +272,7 @@ def generate_wedding_pdf(reservation, output_dir: str, db):
             "last_name": user_of_this_reservation.last_name or "................",
             "wakil_full_NAME": wakil_full_NAME,
             "wakil_phone": wakil_phone,
-            "GUARDIAN_NAME": GUARDIAN_full_NAME,
+            "GUARDIAN_NAME": user_of_this_reservation.guardian_name or "................",
             "father_name": user_of_this_reservation.father_name or "................",
             "guardian_birth_date": user_of_this_reservation.guardian_birth_date.strftime("%Y-%m-%d") if user_of_this_reservation.guardian_birth_date else "................",
             "guardian_birth_address": user_of_this_reservation.guardian_birth_address or "................",
