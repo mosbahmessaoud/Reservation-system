@@ -586,7 +586,26 @@ async def register_grooms_bulk(
     try:
         contents = await file.read()
         df = pd.read_excel(BytesIO(contents))
+
+        # ─── FIX 1: Skip the sub-header and asterisk legend rows ───
+        # Row 0 after header=0 is the merged-cell sub-headers (العريس / الولي / الحجز)
+        # Row 1 after header=0 is the asterisk legend row (* = required)
+        # Real data starts at index 2.
+        # We detect and drop any row whose phone column is not a plausible number.
+        phone_col = 'رقم هاتف العريس'
+        if phone_col in df.columns:
+            df = df[df[phone_col].apply(
+                lambda x: str(x).strip().replace(
+                    ' ', '').isdigit() if pd.notna(x) else False
+            )].reset_index(drop=True)
+
         df = df.where(pd.notna(df), None)
+
+        # ─── FIX 2: Strip leading/trailing spaces from ALL column names ───
+        # The Excel has ' الهيئة الدينية' and ' لجنة المدائح' with a leading space.
+        df.columns = [c.strip() if isinstance(
+            c, str) else c for c in df.columns]
+
     except Exception as e:
         raise HTTPException(
             status_code=400, detail=f"فشل قراءة ملف Excel: {str(e)}")
@@ -598,9 +617,10 @@ async def register_grooms_bulk(
     details = []
 
     for index, row in df.iterrows():
-        row_num = index + 2
+        row_num = index + 2  # +2 because row 1 is the header in Excel
+        phone_number = None  # initialise so the except block can always reference it
         try:
-            # Extract phone numbers - handle both Arabic and English column names
+            # Extract phone numbers
             phone_number = str(row.get('رقم هاتف العريس', row.get('phone_number', ''))).strip(
             ) if pd.notna(row.get('رقم هاتف العريس', row.get('phone_number'))) else None
             guardian_phone = str(row.get('رقم هاتف الولي', row.get('guardian_phone', ''))).strip(
@@ -635,7 +655,6 @@ async def register_grooms_bulk(
                     skipped += 1
                     continue
                 else:
-                    # Delete unverified existing users without reservations
                     db.delete(existing_user)
                     db.commit()
 
@@ -666,15 +685,30 @@ async def register_grooms_bulk(
                         db.delete(existing_guardian)
                         db.commit()
 
-            # Get clan and county - support both Arabic and English column names
-            clan_id_value = row.get(
-                ' العشيرة التي ينتمي إليها', row.get('clan_id'))
-            # county_id_value = row.get(' المحافظة', row.get('county_id'))
+            # ─── FIX 3: Clan lookup — the Excel has clan NAMES, not IDs ───
+            # We resolve the clan name to an ID via the database.
+            # Falls back to current_admin.clan_id when the cell is empty.
+            clan_name_value = row.get(
+                'العشيرة التي ينتمي إليها', row.get('clan_id'))
 
-            clan_id = int(clan_id_value) if pd.notna(
-                clan_id_value) else current_admin.clan_id
-            # county_id = int(county_id_value) if pd.notna(
-            #     county_id_value) else current_admin.county_id
+            if pd.notna(clan_name_value):
+                clan_name_str = str(clan_name_value).strip()
+                # If it's already a pure integer string, use it directly as an ID
+                if clan_name_str.isdigit():
+                    clan_id = int(clan_name_str)
+                else:
+                    # Otherwise look up by name
+                    clan = db.query(Clan).filter(
+                        Clan.name == clan_name_str).first()
+                    if not clan:
+                        details.append({"row": row_num, "phone": phone_number,
+                                       "status": "failed",
+                                        "reason": f"العشيرة '{clan_name_str}' غير موجودة في قاعدة البيانات"})
+                        failed += 1
+                        continue
+                    clan_id = clan.id
+            else:
+                clan_id = current_admin.clan_id
 
             county_id = current_admin.county_id
 
@@ -698,7 +732,7 @@ async def register_grooms_bulk(
                 failed += 1
                 continue
 
-            # Parse dates - support both Arabic and English column names
+            # Parse dates
             birth_date_value = row.get(
                 'تاريخ الميلاد العريس', row.get('birth_date'))
             birth_date = pd.to_datetime(birth_date_value).date(
@@ -709,7 +743,7 @@ async def register_grooms_bulk(
             guardian_birth_date = pd.to_datetime(guardian_birth_date_value).date(
             ) if pd.notna(guardian_birth_date_value) else None
 
-            # Extract all user fields - support both Arabic and English column names
+            # Extract all user fields
             first_name = str(row.get('إسم العريس', row.get(
                 'first_name', 'غير محدد'))).strip()
             last_name = str(row.get('اللقب', row.get(
@@ -790,7 +824,6 @@ async def register_grooms_bulk(
                 try:
                     date1 = pd.to_datetime(date1_value).date()
 
-                    # Validate date is not in the past
                     if date1 < date.today():
                         details.append({
                             "row": row_num,
@@ -800,7 +833,6 @@ async def register_grooms_bulk(
                             "reason": "تم إنشاء المستخدم، لكن التاريخ في الماضي"
                         })
                     else:
-                        # Check if date is already reserved
                         existing_reservation = db.query(Reservation).filter(
                             Reservation.clan_id == clan_id,
                             Reservation.county_id == county_id,
@@ -825,13 +857,10 @@ async def register_grooms_bulk(
                                 "reason": "تم إنشاء المستخدم، لكن التاريخ محجوز"
                             })
                         else:
-
-                            # Extract allow_others value - support both Arabic and English
                             allow_others_value = row.get(
                                 'السماح للآخرين بالانضمام', row.get('allow_others'))
 
-                            # Convert to boolean - handle various input formats
-                            allow_others = False  # Default value
+                            allow_others = False
                             if pd.notna(allow_others_value):
                                 str_value = str(
                                     allow_others_value).strip().upper()
@@ -840,44 +869,46 @@ async def register_grooms_bulk(
                                 elif str_value in ('FALSE', 'لا'):
                                     allow_others = False
 
-                            # Get clan and county - support both Arabic and English column names
-                            clan_id_value_selected = row.get(
-                                '  العشيرة التي يقيم فيها العرس', row.get('clan_id'))
-                            # county_id_value = row.get(' المحافظة', row.get('county_id'))
+                            # ─── FIX 3 (reservation clan): same name→ID lookup ───
+                            clan_name_selected_value = row.get(
+                                'العشيرة التي يقيم فيها العرس', row.get('clan_id'))
 
-                            clan_id_selected = int(clan_id_value_selected) if pd.notna(
-                                clan_id_value_selected) else current_admin.clan_id
-                            # county_id = int(county_id_value) if pd.notna(
-                            #     county_id_value) else current_admin.county_id
+                            if pd.notna(clan_name_selected_value):
+                                clan_name_selected_str = str(
+                                    clan_name_selected_value).strip()
+                                if clan_name_selected_str.isdigit():
+                                    clan_id_selected = int(
+                                        clan_name_selected_str)
+                                else:
+                                    clan_selected = db.query(Clan).filter(
+                                        Clan.name == clan_name_selected_str).first()
+                                    if not clan_selected:
+                                        details.append({
+                                            "row": row_num,
+                                            "phone": phone_number,
+                                            "status": "success",
+                                            "name": f"{user.first_name} {user.last_name}",
+                                            "reason": f"تم إنشاء المستخدم، لكن العشيرة '{clan_name_selected_str}' للحجز غير موجودة"
+                                        })
+                                        successful += 1
+                                        continue
+                                    clan_id_selected = clan_selected.id
+                            else:
+                                clan_id_selected = current_admin.clan_id
 
                             county_id = current_admin.county_id
-                            # # Get hall - use specified hall_id or default hall
-                            # hall_id_value = row.get(
-                            #     'معرف القاعة', row.get('hall_id'))
-                            # hall_id = int(hall_id_value) if pd.notna(
-                            #     hall_id_value) else None
 
-                            # if hall_id:
-                            #     hall = db.query(Hall).filter(
-                            #         Hall.id == hall_id,
-                            #         Hall.clan_id == clan_id
-                            #     ).first()
-                            # else:
-                            #     hall = db.query(Hall).filter(
-                            #         Hall.clan_id == clan_id
-                            #     ).first()
-
-                            # if hall:
-                            # Get committee IDs - support both Arabic and English
+                            # Column names are now stripped, so these match correctly:
+                            # 'الهيئة الدينية' and 'لجنة المدائح'
                             haia_committee_id_value = row.get(
                                 'الهيئة الدينية', row.get('haia_committee_id'))
                             haia_committee_id = int(haia_committee_id_value) if pd.notna(
-                                haia_committee_id_value) else None
+                                haia_committee_id_value) and str(haia_committee_id_value).strip().isdigit() else None
 
                             madaeh_committee_id_value = row.get(
                                 'لجنة المدائح', row.get('madaeh_committee_id'))
                             madaeh_committee_id = int(madaeh_committee_id_value) if pd.notna(
-                                madaeh_committee_id_value) else None
+                                madaeh_committee_id_value) and str(madaeh_committee_id_value).strip().isdigit() else None
 
                             custom_madaeh_committee_name_value = row.get(
                                 'اسم لجنة مداح مخصصة', row.get('custom_madaeh_committee_name'))
@@ -895,9 +926,8 @@ async def register_grooms_bulk(
                                 county_id=county_id,
                                 hall_id=clan_id_selected,
                                 date1=date1,
-
-                                allow_others=allow_others,              # NEW LINE
-                                join_to_mass_wedding=allow_others,      # NEW LINE
+                                allow_others=allow_others,
+                                join_to_mass_wedding=allow_others,
                                 status=ReservationStatus.pending_validation,
                                 payment_status=PaymentStatus.not_paid,
                                 haia_committee_id=haia_committee_id,
@@ -922,14 +952,7 @@ async def register_grooms_bulk(
                             db.add(reservation)
                             db.commit()
                             reservation_created = True
-                            # else:
-                            #     details.append({
-                            #         "row": row_num,
-                            #         "phone": phone_number,
-                            #         "status": "success",
-                            #         "name": f"{user.first_name} {user.last_name}",
-                            #         "reason": "تم إنشاء المستخدم، لكن لا توجد قاعة متاحة"
-                            #     })
+
                 except Exception as e:
                     logger.error(
                         f"Reservation creation failed for row {row_num}: {e}")
@@ -957,7 +980,7 @@ async def register_grooms_bulk(
             logger.error(f"Error processing row {row_num}: {e}")
             details.append({
                 "row": row_num,
-                "phone": phone_number if 'phone_number' in locals() else 'غير معروف',
+                "phone": phone_number if phone_number else 'غير معروف',
                 "status": "failed",
                 "reason": str(e)
             })
