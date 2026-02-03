@@ -275,28 +275,35 @@ def generate_wedding_pdf(reservation, output_dir: str, db):
             logger.error(f"خطأ في استعلام قاعدة البيانات: {e}")
             raise Exception(f"فشل في جلب البيانات المطلوبة: {e}")
 
+        GUARDIAN_full_NAME = user_of_this_reservation.guardian_name + \
+            " " + user_of_this_reservation.guardian_name
+        wakil_full_NAME = user_of_this_reservation.wakil_full_name if user_of_this_reservation.wakil_full_name else GUARDIAN_full_NAME
+        if user_of_this_reservation.wakil_full_name:
+            wakil_phone = user_of_this_reservation.wakil_phone_number if user_of_this_reservation.wakil_phone_number else user_of_this_reservation.guardian_phone
         # Prepare context data
         context = {
-            "COUNTY": county.name if county else "",
-            "ORIGIN_CLAN": original_clan.name if original_clan else "",
-            "RESERVED_CLAN": reserved_clan.name if reserved_clan else "",
-            "groom_NAME": user_of_this_reservation.first_name or "",
-            "last_name": user_of_this_reservation.last_name or "",
-            "GUARDIAN_NAME": user_of_this_reservation.guardian_name or "",
-            "father_name": user_of_this_reservation.father_name or "",
-            "guardian_birth_date": user_of_this_reservation.guardian_birth_date.strftime("%Y-%m-%d") if user_of_this_reservation.guardian_birth_date else "",
-            "guardian_birth_address": user_of_this_reservation.guardian_birth_address or "",
-            "guardian_home_address": user_of_this_reservation.guardian_home_address or "",
-            "grandfather_name": user_of_this_reservation.grandfather_name or "",
-            "birth_date": user_of_this_reservation.birth_date.strftime("%Y-%m-%d") if user_of_this_reservation.birth_date else "",
-            "birth_address": user_of_this_reservation.birth_address or "",
-            "home_address": user_of_this_reservation.home_address or "",
-            "phone_number": user_of_this_reservation.phone_number or "",
+            "COUNTY": county.name if county else "................",
+            "ORIGIN_CLAN": original_clan.name if original_clan else "................",
+            "RESERVED_CLAN": reserved_clan.name if reserved_clan else "................",
+            "groom_NAME": user_of_this_reservation.first_name or "................",
+            "last_name": user_of_this_reservation.last_name or "................",
+            "wakil_full_NAME": wakil_full_NAME or "................",
+            "wakil_phone": wakil_phone or "................",
+            "GUARDIAN_NAME": GUARDIAN_full_NAME or "................",
+            "father_name": user_of_this_reservation.father_name or "................",
+            "guardian_birth_date": user_of_this_reservation.guardian_birth_date.strftime("%Y-%m-%d") if user_of_this_reservation.guardian_birth_date else "................",
+            "guardian_birth_address": user_of_this_reservation.guardian_birth_address or "................",
+            "guardian_home_address": user_of_this_reservation.guardian_home_address or "................",
+            "grandfather_name": user_of_this_reservation.grandfather_name or "................",
+            "birth_date": user_of_this_reservation.birth_date.strftime("%Y-%m-%d") if user_of_this_reservation.birth_date else "................",
+            "birth_address": user_of_this_reservation.birth_address or "................",
+            "home_address": user_of_this_reservation.home_address or "................",
+            "phone_number": user_of_this_reservation.phone_number or "................",
             "WEDDING_DATES": f"{reservation.date1.strftime('%Y-%m-%d')} - {reservation.date2.strftime('%Y-%m-%d')}" if reservation.date2 else reservation.date1.strftime("%Y-%m-%d"),
-            "haia_committee_id": haia_committee.name if haia_committee else "",
-            "madaeh_committee_id": madaeh_committee.name if madaeh_committee else "",
-            "GUARDIAN_phone": user_of_this_reservation.guardian_phone or "",
-            "created_at": reservation.created_at.strftime("%Y-%m-%d") if reservation.created_at else "",
+            "haia_committee_id": haia_committee.name if haia_committee else "................",
+            "madaeh_committee_id": madaeh_committee.name if madaeh_committee else "................",
+            "GUARDIAN_phone": user_of_this_reservation.guardian_phone or "................",
+            "created_at": reservation.created_at.strftime("%Y-%m-%d") if reservation.created_at else "................",
         }
 
         # Fill DOCX template

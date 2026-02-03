@@ -764,7 +764,7 @@ async def register_grooms_bulk(
             ) if pd.notna(home_address_value) else None
 
             guardian_name_value = row.get(
-                'اسم الولي', row.get('guardian_name'))
+                'اسم الكامل الولي', row.get('guardian_name'))
             guardian_name = str(guardian_name_value).strip(
             ) if pd.notna(guardian_name_value) else None
 
@@ -782,6 +782,16 @@ async def register_grooms_bulk(
                 'صلة القرابة بالولي', row.get('guardian_relation'))
             guardian_relation = str(guardian_relation_value).strip(
             ) if pd.notna(guardian_relation_value) else None
+
+            wakil_full_name_value = row.get(
+                'اسم الكامل الوكيل', row.get('wakil_full_name'))
+            wakil_full_name = str(wakil_full_name_value).strip(
+            ) if pd.notna(wakil_full_name_value) else None
+
+            wakil_phone_number_value = row.get(
+                'رقم هاتف الوكيل', row.get('wakil_phone_number'))
+            wakil_phone_number = str(wakil_phone_number_value).strip(
+            ) if pd.notna(wakil_phone_number_value) else None
 
             # Create user
             hashed_password = auth_utils.get_password_hash(phone_number)
@@ -810,6 +820,9 @@ async def register_grooms_bulk(
                 guardian_relation=guardian_relation,
                 created_at=datetime.utcnow(),
                 status=UserStatus.active,
+                wakil_full_name=wakil_full_name,
+                wakil_phone_number=wakil_phone_number,
+
             )
 
             db.add(user)

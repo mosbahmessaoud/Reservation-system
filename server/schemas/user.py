@@ -39,6 +39,8 @@ class UpdateGroomRequest(BaseModel):
     guardian_birth_address: Optional[str] = None
     guardian_birth_date: Optional[date] = None  # Changed from str to date
     guardian_relation: Optional[str] = None
+    wakil_full_name: Optional[str] = None
+    wakil_phone_number: Optional[str] = None
     status: Optional[UserStatus] = None
 
 
@@ -65,6 +67,8 @@ class UserCreate(UserBase):
     guardian_birth_date: Optional[date] = None
     guardian_phone: Optional[str] = None
     guardian_relation: Optional[str] = None
+    wakil_full_name: Optional[str] = None
+    wakil_phone_number: Optional[str] = None
     status: Optional[UserStatus] = UserStatus.active  # Set default value
     # New field to indicate SMS recipient
     sms_to_groom_phone: Optional[bool] = False
@@ -94,6 +98,8 @@ class UserUpdate(BaseModel):
     guardian_birth_date: Optional[date] = None
     guardian_phone: Optional[str] = None
     guardian_relation: Optional[str] = None
+    wakil_full_name: Optional[str] = None
+    wakil_phone_number: Optional[str] = None
 
 
 class UpdateUserStatusRequest(BaseModel):
@@ -119,6 +125,8 @@ class UserOut(UserBase):
     guardian_birth_date: Optional[date] = None
     guardian_phone: Optional[str] = None
     guardian_relation: Optional[str] = None
+    wakil_full_name: Optional[str] = None
+    wakil_phone_number: Optional[str] = None
     access_pages_password_hash: Optional[str] = None
     sms_to_groom_phone: Optional[bool]
 
@@ -170,7 +178,9 @@ class UserCreateBulkGrooms(UserBase):
     guardian_birth_date: Optional[date] = None
     guardian_phone: Optional[str] = None
     guardian_relation: Optional[str] = None
-    status: Optional[UserStatus] = UserStatus.active  # Set default value
+    wakil_full_name: Optional[str] = None
+    wakil_phone_number: Optional[str] = None
+    status: Optional[UserStatus] = UserStatus.active
     # New field to indicate SMS recipient
     sms_to_groom_phone: Optional[bool] = False
 

@@ -74,6 +74,10 @@ class User(Base):
     guardian_birth_address = Column(String)
     guardian_home_address = Column(String)
 
+    # new columns , wakil of the wedding
+    wakil_full_name = Column(String, nullable=True)
+    wakil_phone_number = Column(String, nullable=True)
+
     # New columns
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     status = Column(Enum(UserStatus),
