@@ -1,4 +1,3 @@
-# app/utils/pdf_generator.py
 from docx import Document
 import os
 import subprocess
@@ -57,8 +56,10 @@ def fill_docx_template(template_path: str, output_path: str, context: dict):
 def find_libreoffice():
     """Find LibreOffice executable path."""
     possible_paths = [
-        "libreoffice",  # Linux/Mac in PATH
-        "/usr/bin/libreoffice",  # Linux
+        "libreoffice",  # Linux in PATH
+        "/usr/bin/libreoffice",  # Linux standard location
+        "/usr/bin/soffice",  # Alternative Linux location
+        "soffice",  # Linux in PATH
         "/Applications/LibreOffice.app/Contents/MacOS/soffice",  # Mac
         r"C:\Program Files\LibreOffice\program\soffice.exe",  # Windows
         # Windows 32-bit
@@ -67,14 +68,20 @@ def find_libreoffice():
 
     for path in possible_paths:
         try:
-            result = subprocess.run([path, "--version"],
-                                    capture_output=True, text=True, timeout=10)
+            result = subprocess.run(
+                [path, "--version"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
             if result.returncode == 0:
                 logger.info(f"تم العثور على LibreOffice في: {path}")
+                logger.info(f"الإصدار: {result.stdout.strip()}")
                 return path
         except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
             continue
 
+    logger.error("لم يتم العثور على LibreOffice في أي موقع قياسي")
     return None
 
 
@@ -98,7 +105,6 @@ def convert_to_pdf(docx_path: str, pdf_path: str):
 
     try:
         # Use LibreOffice to convert
-        # Output will be created in the same directory as input with .pdf extension
         cmd = [
             libreoffice_path,
             "--headless",
@@ -113,7 +119,7 @@ def convert_to_pdf(docx_path: str, pdf_path: str):
             cmd,
             capture_output=True,
             text=True,
-            timeout=120  # Increased timeout to 2 minutes
+            timeout=120  # 2 minutes timeout
         )
 
         # Log the output for debugging
@@ -161,40 +167,8 @@ def convert_to_pdf(docx_path: str, pdf_path: str):
         raise Exception(f"فشل تحويل PDF: {str(e)}")
 
 
-def find_libreoffice():
-    """Find LibreOffice executable path."""
-    possible_paths = [
-        "libreoffice",  # Linux in PATH
-        "/usr/bin/libreoffice",  # Linux standard location
-        "/usr/bin/soffice",  # Alternative Linux location
-        "soffice",  # Linux in PATH
-        "/Applications/LibreOffice.app/Contents/MacOS/soffice",  # Mac
-        r"C:\Program Files\LibreOffice\program\soffice.exe",  # Windows
-        # Windows 32-bit
-        r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
-    ]
-
-    for path in possible_paths:
-        try:
-            result = subprocess.run(
-                [path, "--version"],
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
-            if result.returncode == 0:
-                logger.info(f"تم العثور على LibreOffice في: {path}")
-                logger.info(f"الإصدار: {result.stdout.strip()}")
-                return path
-        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
-            continue
-
-    logger.error("لم يتم العثور على LibreOffice في أي موقع قياسي")
-    return None
-
-
 def find_template_path():
-
+    """Find the wedding request form template."""
     # Get the directory where pdf_generator.py is located (server/utils/)
     current_file_dir = Path(__file__).parent  # server/utils/
 
@@ -275,21 +249,33 @@ def generate_wedding_pdf(reservation, output_dir: str, db):
             logger.error(f"خطأ في استعلام قاعدة البيانات: {e}")
             raise Exception(f"فشل في جلب البيانات المطلوبة: {e}")
 
-        GUARDIAN_full_NAME = user_of_this_reservation.guardian_name + \
-            " " + user_of_this_reservation.guardian_name
-        wakil_full_NAME = user_of_this_reservation.wakil_full_name if user_of_this_reservation.wakil_full_name else GUARDIAN_full_NAME
+        # ============ FIXED SECTION ============
+        # Safely build guardian full name - handle None values
+        guardian_first = user_of_this_reservation.guardian_name or ""
+        guardian_last = user_of_this_reservation.guardian_last_name or ""
+        GUARDIAN_full_NAME = f"{guardian_first} {guardian_last}".strip(
+        ) or "................"
+
+        # Set wakil name and phone with proper None handling
+        wakil_full_NAME = user_of_this_reservation.wakil_full_name or GUARDIAN_full_NAME
+
+        # Determine wakil phone: if wakil exists, use their phone, otherwise use guardian's
         if user_of_this_reservation.wakil_full_name:
-            wakil_phone = user_of_this_reservation.wakil_phone_number if user_of_this_reservation.wakil_phone_number else user_of_this_reservation.guardian_phone
-        # Prepare context data
+            wakil_phone = user_of_this_reservation.wakil_phone_number or user_of_this_reservation.guardian_phone or "................"
+        else:
+            wakil_phone = user_of_this_reservation.guardian_phone or "................"
+        # ============ END FIXED SECTION ============
+
+        # Prepare context data with safe None handling
         context = {
             "COUNTY": county.name if county else "................",
             "ORIGIN_CLAN": original_clan.name if original_clan else "................",
             "RESERVED_CLAN": reserved_clan.name if reserved_clan else "................",
             "groom_NAME": user_of_this_reservation.first_name or "................",
             "last_name": user_of_this_reservation.last_name or "................",
-            "wakil_full_NAME": wakil_full_NAME or "................",
-            "wakil_phone": wakil_phone or "................",
-            "GUARDIAN_NAME": GUARDIAN_full_NAME or "................",
+            "wakil_full_NAME": wakil_full_NAME,
+            "wakil_phone": wakil_phone,
+            "GUARDIAN_NAME": GUARDIAN_full_NAME,
             "father_name": user_of_this_reservation.father_name or "................",
             "guardian_birth_date": user_of_this_reservation.guardian_birth_date.strftime("%Y-%m-%d") if user_of_this_reservation.guardian_birth_date else "................",
             "guardian_birth_address": user_of_this_reservation.guardian_birth_address or "................",
@@ -328,16 +314,14 @@ def generate_wedding_pdf(reservation, output_dir: str, db):
         try:
             if filled_docx_path.exists():
                 filled_docx_path.unlink()
-                logger.info(
-                    f"تم حذف ملف DOCX المؤقت: {filled_docx_path}")
+                logger.info(f"تم حذف ملف DOCX المؤقت: {filled_docx_path}")
         except Exception as e:
             logger.warning(f"لم يتمكن من حذف DOCX المؤقت: {e}")
 
         return str(pdf_path)
 
     except Exception as e:
-        logger.error(
-            f"فشل إنشاء PDF للحجز {reservation.id}: {e}")
+        logger.error(f"فشل إنشاء PDF للحجز {reservation.id}: {e}")
         # Clean up any partial files
         try:
             if 'filled_docx_path' in locals() and filled_docx_path.exists():
