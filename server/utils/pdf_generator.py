@@ -252,8 +252,7 @@ def generate_wedding_pdf(reservation, output_dir: str, db):
         # ============ FIXED SECTION ============
         # Safely build guardian full name - handle None values
         guardian_first = user_of_this_reservation.guardian_name or ""
-        guardian_last = user_of_this_reservation.guardian_last_name or ""
-        GUARDIAN_full_NAME = f"{guardian_first} {guardian_last}".strip(
+        GUARDIAN_full_NAME = f"{guardian_first}".strip(
         ) or "................"
 
         # Set wakil name and phone with proper None handling
