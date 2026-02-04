@@ -830,10 +830,55 @@ async def register_grooms_bulk(
             db.commit()
             db.refresh(user)
 
+            allow_others = False
+            allow_others_value = row.get(
+                'السماح للآخرين بالانضمام', row.get('allow_others'))
+            if pd.notna(allow_others_value):
+                str_value = str(
+                    allow_others_value).strip().upper()
+                if str_value in ('TRUE', 'نعم'):
+                    allow_others = True
+                elif str_value in ('FALSE', 'لا'):
+                    allow_others = False
+
+            # ─── FIX 3 (reservation clan): same name→ID lookup ───
+            clan_name_selected_value = row.get(
+                'العشيرة التي يقيم فيها العرس', row.get('clan_id'))
+
+            if pd.notna(clan_name_selected_value):
+                clan_name_selected_str = str(
+                    clan_name_selected_value).strip()
+                # if clan_name_selected_str.isdigit():
+                #     clan_id_selected = int(
+                #         clan_name_selected_str)
+                # else:
+                clan_selected = db.query(Clan).filter(
+                    Clan.name == clan_name_selected_str).first()
+                if not clan_selected:
+                    details.append({
+                        "row": row_num,
+                        "phone": phone_number,
+                        "status": "success",
+                        "name": f"{user.first_name} {user.last_name}",
+                        "reason": f"تم إنشاء المستخدم، لكن العشيرة '{clan_name_selected_str}' للحجز غير موجودة"
+                    })
+                    successful += 1
+                    continue
+                clan_id_selected = clan_selected.id
+            else:
+                details.append({
+                    "row": row_num,
+                    "phone": phone_number,
+                    "status": "success",
+                    "name": f"{user.first_name} {user.last_name}",
+                    "reason": f"تم إنشاء المستخدم، لكن العشيرة '{clan_name_selected_str}' للحجز غير موجودة"
+                })
+                successful += 1
+                continue
+
             # Try to create reservation if date1 is provided
             reservation_created = False
             date1_value = row.get('تاريخ الحجز', row.get('date1'))
-
             if pd.notna(date1_value):
                 try:
                     date1 = pd.to_datetime(date1_value).date()
@@ -849,30 +894,38 @@ async def register_grooms_bulk(
                     else:
                         existing_rese = False
                         existing_reservation = db.query(Reservation).filter(
-                            Reservation.clan_id == clan_id,
                             Reservation.county_id == county_id,
+                            Reservation.clan_id == clan_id_selected,
                             Reservation.status != ReservationStatus.cancelled,
                             or_(Reservation.date1 == date1,
                                 Reservation.date2 == date1)
                         ).first()
-                        if existing_reservation :
+
+                        if existing_reservation:
+                            existing_rese = True
+
+                        if existing_reservation and allow_others:
                             check_mass_wedding = db.query(Reservation).filter(
-                                Reservation.id == existing_reservation.id,
+                                Reservation.clan_id == clan_id_selected,
+                                Reservation.county_id == county_id,
                                 Reservation.status != ReservationStatus.cancelled,
                                 Reservation.allow_others == True,
+                                or_(Reservation.date1 == date1,
+                                    Reservation.date2 == date1)
                             ).all()
                             clan_seting = db.query(ClanSettings).filter(
                                 ClanSettings.clan_id == existing_reservation.clan_id,
-                                
+
                             ).first()
-                            
-                            if check_mass_wedding > clan_seting.max_grooms_per_date:
-                                existing_rese = True 
-                            
+
+                            if check_mass_wedding >= clan_seting.max_grooms_per_date:
+                                existing_rese = True
+                            else:
+                                existing_rese = False
 
                         existing_reservation_special = db.query(ReservationSpecial).filter(
-                            ReservationSpecial.clan_id == clan_id,
                             ReservationSpecial.county_id == county_id,
+                            ReservationSpecial.clan_id == clan_id_selected,
                             ReservationSpecial.status != ReservationSpecialStatus.cancelled,
                             ReservationSpecial.date == date1,
                         ).first()
@@ -886,44 +939,6 @@ async def register_grooms_bulk(
                                 "reason": "تم إنشاء المستخدم، لكن التاريخ محجوز"
                             })
                         else:
-                            allow_others_value = row.get(
-                                'السماح للآخرين بالانضمام', row.get('allow_others'))
-
-                            allow_others = False
-                            if pd.notna(allow_others_value):
-                                str_value = str(
-                                    allow_others_value).strip().upper()
-                                if str_value in ('TRUE', 'نعم'):
-                                    allow_others = True
-                                elif str_value in ('FALSE', 'لا'):
-                                    allow_others = False
-
-                            # ─── FIX 3 (reservation clan): same name→ID lookup ───
-                            clan_name_selected_value = row.get(
-                                'العشيرة التي يقيم فيها العرس', row.get('clan_id'))
-
-                            if pd.notna(clan_name_selected_value):
-                                clan_name_selected_str = str(
-                                    clan_name_selected_value).strip()
-                                if clan_name_selected_str.isdigit():
-                                    clan_id_selected = int(
-                                        clan_name_selected_str)
-                                else:
-                                    clan_selected = db.query(Clan).filter(
-                                        Clan.name == clan_name_selected_str).first()
-                                    if not clan_selected:
-                                        details.append({
-                                            "row": row_num,
-                                            "phone": phone_number,
-                                            "status": "success",
-                                            "name": f"{user.first_name} {user.last_name}",
-                                            "reason": f"تم إنشاء المستخدم، لكن العشيرة '{clan_name_selected_str}' للحجز غير موجودة"
-                                        })
-                                        successful += 1
-                                        continue
-                                    clan_id_selected = clan_selected.id
-                            else:
-                                clan_id_selected = current_admin.clan_id
 
                             county_id = current_admin.county_id
 
