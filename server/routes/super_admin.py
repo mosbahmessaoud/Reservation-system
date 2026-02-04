@@ -123,6 +123,8 @@ def create_clan(clan: ClanCreate, db: Session = Depends(get_db)):
     settings = ClanSettings(clan_id=clane.id)
     db.add(settings)
     db.commit()
+    db.refresh(settings)
+
     # Create default clan rules
     # default_rules = ClanRules(
     #     general_rule="القوانين العامة للعشيرة",
