@@ -808,14 +808,16 @@ async def register_grooms_bulk(
                         continue
                 else:
                     # Use Arabic-optimized fuzzy matching
-                    clan = find_clan_by_name_fuzzy(
-                        db, clan_name_str, threshold=70)
+                    # clan = find_clan_by_name_fuzzy(
+                    #     db, clan_name_str, threshold=70)
+                    clan = db.query(Clan).filter(
+                        Clan.name == clan_name_str).first()
                     if not clan:
                         details.append({
                             "row": row_num,
                             "phone": phone_number,
                             "status": "failed",
-                            "reason": f"العشيرة '{clan_name_str}' غير موجودة (لم يتم العثور على تطابق قريب)"
+                            "reason": f"العشيرة '{clan_name_str}' غير موجودة (لم يتم العثور على تطابق )"
                         })
                         failed += 1
                         continue
@@ -825,7 +827,7 @@ async def register_grooms_bulk(
                     "row": row_num,
                     "phone": phone_number,
                     "status": "failed",
-                    "reason": "العشيرة غير موجودة (لم يتم العثور على تطابق قريب)"
+                    "reason": "العشيرة غير موجودة (لم يتم العثور على تطابق )"
                 })
                 failed += 1
                 continue
@@ -970,8 +972,10 @@ async def register_grooms_bulk(
                 clan_name_selected_str = str(clan_name_selected_value).strip()
 
                 # Use Arabic-optimized fuzzy matching
-                clan_selected = find_clan_by_name_fuzzy(
-                    db, clan_name_selected_str, threshold=70)
+                # clan_selected = find_clan_by_name_fuzzy(
+                #     db, clan_name_selected_str, threshold=70)
+                clan_selected = db.query(Clan).filter(
+                    Clan.name == clan_name_selected_str).first()
 
                 if not clan_selected:
                     details.append({
@@ -979,8 +983,10 @@ async def register_grooms_bulk(
                         "phone": phone_number,
                         "status": "success",
                         "name": f"{user.first_name} {user.last_name}",
-                        "reason": f"تم إنشاء المستخدم، لكن العشيرة '{clan_name_selected_str}' للحجز غير موجودة"
+                        "reason": f"لم يتم الإنشاء  لأن العشيرة '{clan_name_selected_str}' للحجز غير موجودة"
                     })
+                    db.delete(user)
+                    db.commit()
                     successful += 1
                     continue
                 clan_id_selected = clan_selected.id
@@ -990,8 +996,10 @@ async def register_grooms_bulk(
                     "phone": phone_number,
                     "status": "success",
                     "name": f"{user.first_name} {user.last_name}",
-                    "reason": "تم إنشاء المستخدم، لكن لم يتم تحديد عشيرة للحجز"
+                    "reason": "لم يتم الإنشاء لأن لم يتم تحديد عشيرة للحجز"
                 })
+                db.delete(user)
+                db.commit()
                 successful += 1
                 continue
 
@@ -1008,8 +1016,14 @@ async def register_grooms_bulk(
                             "phone": phone_number,
                             "status": "success",
                             "name": f"{user.first_name} {user.last_name}",
-                            "reason": "تم إنشاء المستخدم، لكن التاريخ في الماضي"
+                            "reason": "لم يتم اللإنشاء , تاريخ الحجز في الماضي"
                         })
+                        if user:
+                            exist_user = db.query(User).filter(
+                                User.id == user.id).first()
+                            if exist_user:
+                                db.delete(user)
+                                db.commit()
                     else:
                         existing_rese = False
                         existing_reservation = db.query(Reservation).filter(
@@ -1061,8 +1075,14 @@ async def register_grooms_bulk(
                                 "phone": phone_number,
                                 "status": "success",
                                 "name": f"{user.first_name} {user.last_name}",
-                                "reason": "تم إنشاء المستخدم، لكن التاريخ محجوز"
+                                "reason": "لم يتم إنشاء , التاريخ محجوز"
                             })
+                            if user:
+                                exist_user = db.query(User).filter(
+                                    User.id == user.id).first()
+                                if exist_user:
+                                    db.delete(user)
+                                    db.commit()
                         else:
 
                             county_id = current_admin.county_id
@@ -1130,7 +1150,7 @@ async def register_grooms_bulk(
                         "phone": phone_number,
                         "status": "success",
                         "name": f"{user.first_name} {user.last_name}",
-                        "reason": f"تم إنشاء المستخدم، لكن فشل إنشاء الحجز: {str(e)}"
+                        "reason": f"  فشل إنشاء : {str(e)}"
                     })
 
             if not details or details[-1].get("row") != row_num:
