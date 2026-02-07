@@ -219,12 +219,14 @@ def delet_a_clan(clan_id: int, db: Session = Depends(get_db)):
 #         raise HTTPException(status_code=404, detail="No clans found")
 #     return clans
 # get all clans
+# get all clans
 @router.get("/all_clans", response_model=list[ClanOut])
 def get_all_clans(db: Session = Depends(get_db)):
     """
-    Get all clans except the one named 'دار الأعراس موسى المال'.
+    Get all clans except the one named 'دار الأعراس موسى المال', ordered by ID.
     """
-    clans = db.query(Clan).filter(Clan.name != "دار الأعراس موسى المال").all()
+    clans = db.query(Clan).filter(
+        Clan.name != "دار الأعراس موسى المال").order_by(Clan.id).all()
     if not clans:
         raise HTTPException(status_code=404, detail="No clans found")
     return clans
