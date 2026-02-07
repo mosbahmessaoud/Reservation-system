@@ -808,10 +808,10 @@ async def register_grooms_bulk(
                         continue
                 else:
                     # Use Arabic-optimized fuzzy matching
-                    # clan = find_clan_by_name_fuzzy(
-                    #     db, clan_name_str, threshold=70)
-                    clan = db.query(Clan).filter(
-                        Clan.name == clan_name_str).first()
+                    clan = find_clan_by_name_fuzzy(
+                        db, clan_name_str, threshold=70)
+                    # clan = db.query(Clan).filter(
+                    #     Clan.name == clan_name_str).first()
                     if not clan:
                         details.append({
                             "row": row_num,
@@ -972,10 +972,10 @@ async def register_grooms_bulk(
                 clan_name_selected_str = str(clan_name_selected_value).strip()
 
                 # Use Arabic-optimized fuzzy matching
-                # clan_selected = find_clan_by_name_fuzzy(
-                #     db, clan_name_selected_str, threshold=70)
-                clan_selected = db.query(Clan).filter(
-                    Clan.name == clan_name_selected_str).first()
+                clan_selected = find_clan_by_name_fuzzy(
+                    db, clan_name_selected_str, threshold=70)
+                # clan_selected = db.query(Clan).filter(
+                #     Clan.name == clan_name_selected_str).first()
 
                 if not clan_selected:
                     details.append({
