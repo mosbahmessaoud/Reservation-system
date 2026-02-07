@@ -208,13 +208,23 @@ def delet_a_clan(clan_id: int, db: Session = Depends(get_db)):
     return {"message": f"Clan with ID {clan_id} has been deleted successfully."}
 
 
+# # get all clans
+# @router.get("/all_clans", response_model=list[ClanOut])
+# def get_all_clans(db: Session = Depends(get_db)):
+#     """
+#     Get all clans.
+#     """
+#     clans = db.query(Clan).all()
+#     if not clans:
+#         raise HTTPException(status_code=404, detail="No clans found")
+#     return clans
 # get all clans
 @router.get("/all_clans", response_model=list[ClanOut])
 def get_all_clans(db: Session = Depends(get_db)):
     """
-    Get all clans.
+    Get all clans except the one named 'دار الأعراس موسى المال'.
     """
-    clans = db.query(Clan).all()
+    clans = db.query(Clan).filter(Clan.name != "دار الأعراس موسى المال").all()
     if not clans:
         raise HTTPException(status_code=404, detail="No clans found")
     return clans
