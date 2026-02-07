@@ -722,19 +722,29 @@ async def register_grooms_bulk(
                                    "status": "skipped", "reason": "المستخدم موجود ولديه حجز"})
                     skipped += 1
                     continue
-                elif existing_user.role == UserRole.clan_admin:
-                    details.append({"row": row_num, "phone": phone_number,
-                                   "status": "skipped", "reason": "رقم الهاتف مرتبط بحساب مدير عشيرة"})
-                    skipped += 1
-                    continue
-                elif existing_user.role == UserRole.super_admin:
-                    details.append({"row": row_num, "phone": phone_number,
-                                   "status": "skipped", "reason": "رقم الهاتف مرتبط بحساب المسؤول الأعلى"})
-                    skipped += 1
-                    continue
                 else:
-                    db.delete(existing_user)
-                    db.commit()
+                    details.append({"row": row_num, "phone": phone_number,
+                                    "status": "skipped", "reason": "المستخدم موجود "})
+                    skipped += 1
+                    continue
+                # if has_reservation(db, existing_user.id):
+                #     details.append({"row": row_num, "phone": phone_number,
+                #                    "status": "skipped", "reason": "المستخدم موجود ولديه حجز"})
+                #     skipped += 1
+                #     continue
+                # elif existing_user.role == UserRole.clan_admin:
+                #     details.append({"row": row_num, "phone": phone_number,
+                #                    "status": "skipped", "reason": "رقم الهاتف مرتبط بحساب مدير عشيرة"})
+                #     skipped += 1
+                #     continue
+                # elif existing_user.role == UserRole.super_admin:
+                #     details.append({"row": row_num, "phone": phone_number,
+                #                    "status": "skipped", "reason": "رقم الهاتف مرتبط بحساب المسؤول الأعلى"})
+                #     skipped += 1
+                #     continue
+                # else:
+                #     db.delete(existing_user)
+                #     db.commit()
 
             # Check guardian phone if provided
             if guardian_phone:
@@ -749,19 +759,29 @@ async def register_grooms_bulk(
                                        "status": "skipped", "reason": "رقم هاتف الولي موجود ولديه حجز"})
                         skipped += 1
                         continue
-                    elif existing_guardian.role == UserRole.clan_admin:
-                        details.append({"row": row_num, "phone": phone_number,
-                                       "status": "skipped", "reason": "رقم هاتف الولي مرتبط بحساب مدير عشيرة"})
-                        skipped += 1
-                        continue
-                    elif existing_guardian.role == UserRole.super_admin:
-                        details.append({"row": row_num, "phone": phone_number,
-                                       "status": "skipped", "reason": "رقم هاتف الولي مرتبط بحساب المسؤول الأعلى"})
-                        skipped += 1
-                        continue
                     else:
-                        db.delete(existing_guardian)
-                        db.commit()
+                        details.append({"row": row_num, "phone": phone_number,
+                                       "status": "skipped", "reason": "رقم هاتف الولي موجود "})
+                        skipped += 1
+                        continue
+                    # if has_reservation(db, existing_guardian.id):
+                    #     details.append({"row": row_num, "phone": phone_number,
+                    #                    "status": "skipped", "reason": "رقم هاتف الولي موجود ولديه حجز"})
+                    #     skipped += 1
+                    #     continue
+                    # elif existing_guardian.role == UserRole.clan_admin:
+                    #     details.append({"row": row_num, "phone": phone_number,
+                    #                    "status": "skipped", "reason": "رقم هاتف الولي مرتبط بحساب مدير عشيرة"})
+                    #     skipped += 1
+                    #     continue
+                    # elif existing_guardian.role == UserRole.super_admin:
+                    #     details.append({"row": row_num, "phone": phone_number,
+                    #                    "status": "skipped", "reason": "رقم هاتف الولي مرتبط بحساب المسؤول "})
+                    #     skipped += 1
+                    #     continue
+                    # else:
+                    #     db.delete(existing_guardian)
+                    #     db.commit()
 
             # ─── FIX 3: Clan lookup — the Excel has clan NAMES, not IDs ───
             # We resolve the clan name to an ID via the database.
