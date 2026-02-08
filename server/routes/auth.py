@@ -885,10 +885,7 @@ async def register_grooms_bulk(
             home_address = str(home_address_value).strip(
             ) if pd.notna(home_address_value) else None
 
-            guardian_name_value = row.get(
-                'اسم الكامل الولي', row.get('guardian_name'))
-            guardian_name = str(guardian_name_value).strip(
-            ) if pd.notna(guardian_name_value) else None
+           
 
             guardian_home_address_value = row.get(
                 'عنوان سكن الولي', row.get('guardian_home_address'))
@@ -915,6 +912,16 @@ async def register_grooms_bulk(
             wakil_phone_number = str(wakil_phone_number_value).strip(
             ) if pd.notna(wakil_phone_number_value) else None
 
+
+
+            if guardian_relation == "الأب" :
+                guardian_name= last_name + father_name + "بن" + grandfather_name
+            else :
+                guardian_name_value = row.get(
+                    'اسم الكامل الولي', row.get('guardian_name'))
+                guardian_name = str(guardian_name_value).strip(
+                ) if pd.notna(guardian_name_value) else None
+                
             # Create user
             hashed_password = auth_utils.get_password_hash(phone_number)
             hashed_access_password = auth_utils.get_password_hash("تعشيرت")
